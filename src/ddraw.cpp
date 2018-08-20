@@ -1,10 +1,3 @@
-#pragma comment(linker, "/dll")
-#pragma comment(linker, "/ENTRY:\"DllEntryPoint\"") // define entry point cause no C Lib
-#pragma comment(linker, "/export:DirectDrawCreate=_DirectDrawCreate@12")
-#pragma comment(linker, "/NODEFAULTLIB") // specifically no C runtime lib (for no real reason)
-#pragma comment( lib, "kernel32" )
-#pragma comment( lib, "user32" )
-#pragma comment( lib, "gdi32" )
 
 #define CINTERFACE 
 #include <windows.h>
@@ -155,16 +148,15 @@ void ToScreen( void )
 	return;
 }
 
-
-BOOL __stdcall DllEntryPoint( HINSTANCE hDll, DWORD dwReason, LPVOID lpvReserved )
+BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
 	HBITMAP hBitmap;
 	WNDCLASS wc;
 	HINSTANCE hInst;
 
-	if( dwReason == DLL_PROCESS_ATTACH )
+	if(ul_reason_for_call == DLL_PROCESS_ATTACH )
 	{
-		DisableThreadLibraryCalls( hDll );
+		DisableThreadLibraryCalls(hModule);
 
 		// create offscreen drawing surface
 		bmi.bmiHeader.biSize = sizeof( BITMAPINFOHEADER ); 
@@ -194,7 +186,7 @@ BOOL __stdcall DllEntryPoint( HINSTANCE hDll, DWORD dwReason, LPVOID lpvReserved
 		HookFonts();
 	}
 
-	if( dwReason == DLL_PROCESS_DETACH )
+	if(ul_reason_for_call == DLL_PROCESS_DETACH )
 	{
 		// todo: delete dibsection...
 		hOldBitmap = (HBITMAP) SelectObject( hdc_offscreen, hOldBitmap );
