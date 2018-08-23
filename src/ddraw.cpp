@@ -10,6 +10,8 @@ struct {
 	RGBQUAD bmiColors[256]; 
 } bmi;
 
+LRESULT(CALLBACK *OrgWndProc)(HWND, UINT, WPARAM, LPARAM);
+BOOL Fullscreen = TRUE;
 HWND hwnd_main;
 void* pvBmpBits;
 HDC hdc_offscreen;
@@ -29,6 +31,50 @@ const DWORD* const IDDPal = ddp_vtbl;
 // real ddraw for fullscreen
 IDirectDraw* ddraw;
 IDirectDrawSurface* dds_primary = NULL;
+
+void ToggleFullscreen()
+{
+    if (Fullscreen)
+    {
+        Fullscreen = FALSE;
+        ddraw->lpVtbl->SetCooperativeLevel(ddraw, hwnd_main, DDSCL_NORMAL);
+        ddraw->lpVtbl->RestoreDisplayMode(ddraw);
+
+        SetWindowPos(hwnd_main, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_SHOWWINDOW);
+    }
+    else
+    {
+        Fullscreen = TRUE;
+        ddraw->lpVtbl->SetCooperativeLevel(ddraw, hwnd_main, DDSCL_FULLSCREEN | DDSCL_EXCLUSIVE);
+        ddraw->lpVtbl->SetDisplayMode(ddraw, width, height, 32);
+    }
+}
+
+LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+    switch (uMsg)
+    {
+        case WM_SYSKEYDOWN:
+        {
+            if (wParam == VK_RETURN)
+            {
+                ToggleFullscreen();
+                return 0;
+            }
+            break;
+        }
+        case WM_ACTIVATEAPP:
+        {
+            // keep drawing in windowed mode
+            if (!Fullscreen)
+                return 0;
+
+            break;
+        }
+
+    }
+    return OrgWndProc(hWnd, uMsg, wParam, lParam);
+}
 
 #pragma intrinsic( strcat )
 HRESULT GoFullscreen( void )
@@ -267,6 +313,10 @@ HRESULT __stdcall DirectDrawCreate( GUID* lpGUID, LPDIRECTDRAW* lplpDD, IUnknown
 HRESULT __stdcall dd_SetCooperativeLevel( void* This, HWND hWnd, DWORD dwFlags )
 { 
 	hwnd_main = hWnd;
+
+    OrgWndProc = (LRESULT(CALLBACK *)(HWND, UINT, WPARAM, LPARAM))GetWindowLong(hWnd, GWL_WNDPROC);
+    SetWindowLong(hWnd, GWL_WNDPROC, (LONG)WndProc);
+    SetWindowLong(hWnd, GWL_STYLE, GetWindowLong(hWnd, GWL_STYLE) | WS_MINIMIZEBOX);
 
 	// the window size is the original desktop resolution...
 	// which is obnoxious when not running in fullscreen.
