@@ -32,19 +32,46 @@ const DWORD* const IDDPal = ddp_vtbl;
 IDirectDraw* ddraw;
 IDirectDrawSurface* dds_primary = NULL;
 
+void FixBnet()
+{
+    if (!Fullscreen && !IsIconic(hwnd_main))
+    {
+        HWND sDlgDialog = FindWindowEx(HWND_DESKTOP, NULL, "SDlgDialog", NULL);
+
+        if (sDlgDialog)
+        {
+            int captsize = GetSystemMetrics(SM_CYCAPTION);
+            SetWindowPos(hwnd_main, 0, 0, captsize > 0 ? -(captsize / 2) : -10, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER);
+        }
+    }
+}
+
 void ToggleFullscreen()
 {
     if (Fullscreen)
     {
         Fullscreen = FALSE;
+
         ddraw->lpVtbl->SetCooperativeLevel(ddraw, hwnd_main, DDSCL_NORMAL);
         ddraw->lpVtbl->RestoreDisplayMode(ddraw);
 
-        SetWindowPos(hwnd_main, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_SHOWWINDOW);
+        int x = (GetSystemMetrics(SM_CXSCREEN) / 2) - (width / 2);
+        int y = (GetSystemMetrics(SM_CYSCREEN) / 2) - (height / 2);
+        RECT dst = { x, y, width + x, height + y };
+
+        SetWindowLong(hwnd_main, GWL_STYLE, GetWindowLong(hwnd_main, GWL_STYLE) | WS_CAPTION | WS_BORDER | WS_SYSMENU | WS_MINIMIZEBOX);
+        AdjustWindowRect(&dst, GetWindowLong(hwnd_main, GWL_STYLE), FALSE);
+        SetWindowPos(hwnd_main, HWND_TOPMOST, dst.left, dst.top, (dst.right - dst.left), (dst.bottom - dst.top), SWP_SHOWWINDOW);
+
+        FixBnet();
     }
     else
     {
         Fullscreen = TRUE;
+
+        SetWindowLong(hwnd_main, GWL_STYLE, GetWindowLong(hwnd_main, GWL_STYLE) & ~(WS_CAPTION | WS_THICKFRAME | WS_SYSMENU));
+        SetWindowPos(hwnd_main, 0, 0, 0, width, height, SWP_NOZORDER | SWP_NOOWNERZORDER);
+
         ddraw->lpVtbl->SetCooperativeLevel(ddraw, hwnd_main, DDSCL_FULLSCREEN | DDSCL_EXCLUSIVE);
         ddraw->lpVtbl->SetDisplayMode(ddraw, width, height, 32);
     }
@@ -71,7 +98,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
             break;
         }
-
+        case WM_ACTIVATE:
+        {
+            if (wParam == WA_INACTIVE)
+            {
+                FixBnet();
+            }
+            break;
+        }
     }
     return OrgWndProc(hWnd, uMsg, wParam, lParam);
 }
@@ -316,7 +350,6 @@ HRESULT __stdcall dd_SetCooperativeLevel( void* This, HWND hWnd, DWORD dwFlags )
 
     OrgWndProc = (LRESULT(CALLBACK *)(HWND, UINT, WPARAM, LPARAM))GetWindowLong(hWnd, GWL_WNDPROC);
     SetWindowLong(hWnd, GWL_WNDPROC, (LONG)WndProc);
-    SetWindowLong(hWnd, GWL_STYLE, GetWindowLong(hWnd, GWL_STYLE) | WS_MINIMIZEBOX);
 
 	// the window size is the original desktop resolution...
 	// which is obnoxious when not running in fullscreen.
