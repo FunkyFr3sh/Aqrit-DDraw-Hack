@@ -2,6 +2,7 @@
 #define CINTERFACE 
 #include <windows.h>
 #include <ddraw.h>
+#include <stdint.h>
 
 void HookFonts(void);
 
@@ -12,11 +13,12 @@ struct {
 
 LRESULT(CALLBACK *OrgWndProc)(HWND, UINT, WPARAM, LPARAM);
 BOOL Fullscreen = TRUE;
+BOOL MouseLocked;
 HWND hwnd_main;
 void* pvBmpBits;
 HDC hdc_offscreen;
-const DWORD width = 640;
-const DWORD height = 480;
+const LONG width = 640;
+const LONG height = 480;
 HBITMAP hOldBitmap; // for cleanup
 
 WNDPROC ButtonWndProc_original;
@@ -32,6 +34,36 @@ const DWORD* const IDDPal = ddp_vtbl;
 IDirectDraw* ddraw;
 IDirectDrawSurface* dds_primary = NULL;
 
+
+void MouseLock()
+{
+    if (!MouseLocked)
+    {
+        RECT rc;
+        GetClientRect(hwnd_main, &rc);
+
+        POINT pt = { rc.left, rc.top };
+        POINT pt2 = { rc.right, rc.bottom };
+        ClientToScreen(hwnd_main, &pt);
+        ClientToScreen(hwnd_main, &pt2);
+
+        SetRect(&rc, pt.x, pt.y, pt2.x, pt2.y);
+        ClipCursor(&rc);
+
+        MouseLocked = TRUE;
+    }
+}
+
+void MouseUnlock()
+{
+    if (MouseLocked)
+    {
+        MouseLocked = FALSE;
+
+        ClipCursor(NULL);
+    }
+}
+
 void FixBnet()
 {
     if (!Fullscreen && !IsIconic(hwnd_main))
@@ -41,7 +73,7 @@ void FixBnet()
         if (sDlgDialog)
         {
             int captsize = GetSystemMetrics(SM_CYCAPTION);
-            SetWindowPos(hwnd_main, 0, 0, captsize > 0 ? -(captsize / 2) : -10, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER);
+            SetWindowPos(hwnd_main, 0, 0, captsize > 0 ? -(captsize / 2) : 0, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER);
         }
     }
 }
@@ -52,11 +84,13 @@ void ToggleFullscreen()
     {
         Fullscreen = FALSE;
 
+        MouseUnlock();
+
         ddraw->lpVtbl->SetCooperativeLevel(ddraw, hwnd_main, DDSCL_NORMAL);
         ddraw->lpVtbl->RestoreDisplayMode(ddraw);
 
-        int x = (GetSystemMetrics(SM_CXSCREEN) / 2) - (width / 2);
-        int y = (GetSystemMetrics(SM_CYSCREEN) / 2) - (height / 2);
+        LONG x = (GetSystemMetrics(SM_CXSCREEN) / 2) - (width / 2);
+        LONG y = (GetSystemMetrics(SM_CYSCREEN) / 2) - (height / 2);
         RECT dst = { x, y, width + x, height + y };
 
         SetWindowLong(hwnd_main, GWL_STYLE, GetWindowLong(hwnd_main, GWL_STYLE) | WS_CAPTION | WS_BORDER | WS_SYSMENU | WS_MINIMIZEBOX);
@@ -68,6 +102,8 @@ void ToggleFullscreen()
     else
     {
         Fullscreen = TRUE;
+
+        MouseUnlock();
 
         SetWindowLong(hwnd_main, GWL_STYLE, GetWindowLong(hwnd_main, GWL_STYLE) & ~(WS_CAPTION | WS_THICKFRAME | WS_SYSMENU));
         SetWindowPos(hwnd_main, 0, 0, 0, width, height, SWP_NOZORDER | SWP_NOOWNERZORDER);
@@ -81,6 +117,28 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     switch (uMsg)
     {
+        case WM_RBUTTONDOWN:
+        {
+            if (!MouseLocked && !FindWindowEx(HWND_DESKTOP, NULL, "SDlgDialog", NULL))
+                MouseLock();
+
+            break;
+        }
+        case WM_KEYDOWN:
+        {
+            if (wParam == VK_CONTROL || wParam == VK_TAB)
+            {
+                if (GetAsyncKeyState(VK_CONTROL) & 0x8000 && GetAsyncKeyState(VK_TAB) & 0x8000)
+                {
+                    if (MouseLocked)
+                        MouseUnlock();
+                    else
+                        MouseLock();
+
+                    return 0;
+                }
+            }
+        }
         case WM_SYSKEYDOWN:
         {
             if (wParam == VK_RETURN)
@@ -102,6 +160,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         {
             if (wParam == WA_INACTIVE)
             {
+                MouseUnlock();
                 FixBnet();
             }
             break;
@@ -110,7 +169,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     return OrgWndProc(hWnd, uMsg, wParam, lParam);
 }
 
-#pragma intrinsic( strcat )
 HRESULT GoFullscreen( void )
 {
 	HMODULE ddraw_dll; 
@@ -121,7 +179,7 @@ HRESULT GoFullscreen( void )
 	char szPath[ MAX_PATH ];
 	if( GetSystemDirectory( szPath, MAX_PATH - 10 ))
 	{
-		strcat( szPath, "\\ddraw.dll" );
+		strcat_s( szPath, "\\ddraw.dll" );
 		ddraw_dll = LoadLibrary( szPath );
 
 		if( ddraw_dll != NULL)
@@ -175,7 +233,6 @@ LRESULT __stdcall ButtonWndProc( HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
 	if( msg == WM_DESTROY ) RedrawWindow( NULL, NULL, NULL, RDW_ERASE | RDW_INVALIDATE | RDW_ALLCHILDREN );
 	return ButtonWndProc_original( hwnd, msg, wParam, lParam );
 }
-
 
 void ToScreen( void )
 {
@@ -282,8 +339,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	return TRUE;
 }
 
-
-#pragma intrinsic( _byteswap_ulong ) // i486+
 HRESULT __stdcall ddp_SetEntries( void* This, DWORD dwFlags, DWORD dwStartingEntry, DWORD dwCount, LPPALETTEENTRY lpEntries )
 {
 	static RGBQUAD colors[256];
@@ -303,7 +358,6 @@ HRESULT __stdcall ddp_SetEntries( void* This, DWORD dwFlags, DWORD dwStartingEnt
 	InvalidateRect( hwnd_main, NULL, TRUE ); 
 	return 0;
 }
-
 
 HRESULT __stdcall dd_SetDisplayMode( void* This, DWORD dwWidth, DWORD dwHeight, DWORD dwBPP )
 { 
