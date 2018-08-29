@@ -16,6 +16,7 @@ struct {
 LRESULT(CALLBACK *OrgWndProc)(HWND, UINT, WPARAM, LPARAM);
 BOOL Fullscreen = TRUE;
 BOOL MouseLocked;
+RECT OldWindowPos;
 HWND hwnd_main;
 void* pvBmpBits;
 HDC hdc_offscreen;
@@ -68,8 +69,6 @@ void MouseUnlock()
 
 void FixBnet(BOOL showWindow)
 {
-    static RECT OldWindowPos;
-
     if (!Fullscreen && !IsIconic(hwnd_main))
     {
         HWND sDlgDialog = FindWindowEx(HWND_DESKTOP, NULL, "SDlgDialog", NULL);
@@ -105,8 +104,8 @@ void ToggleFullscreen()
             ddraw->lpVtbl->RestoreDisplayMode(ddraw);
         }
 
-        LONG x = (GetSystemMetrics(SM_CXSCREEN) / 2) - (width / 2);
-        LONG y = (GetSystemMetrics(SM_CYSCREEN) / 2) - (height / 2);
+        LONG x = OldWindowPos.right ? OldWindowPos.left : (GetSystemMetrics(SM_CXSCREEN) / 2) - (width / 2);
+        LONG y = OldWindowPos.right ? OldWindowPos.top : (GetSystemMetrics(SM_CYSCREEN) / 2) - (height / 2);
         RECT dst = { x, y, width + x, height + y };
 
         SetWindowLong(hwnd_main, GWL_STYLE, GetWindowLong(hwnd_main, GWL_STYLE) | WS_CAPTION | WS_BORDER | WS_SYSMENU | WS_MINIMIZEBOX);
@@ -120,6 +119,9 @@ void ToggleFullscreen()
         Fullscreen = TRUE;
 
         MouseUnlock();
+
+        if (!FindWindowEx(HWND_DESKTOP, NULL, "SDlgDialog", NULL))
+            GetWindowRect(hwnd_main, &OldWindowPos);
 
         SetWindowLong(hwnd_main, GWL_STYLE, GetWindowLong(hwnd_main, GWL_STYLE) & ~(WS_CAPTION | WS_THICKFRAME | WS_SYSMENU));
         SetWindowPos(hwnd_main, 0, 0, 0, width, height, SWP_NOZORDER | SWP_NOOWNERZORDER);
