@@ -66,16 +66,27 @@ void MouseUnlock()
     }
 }
 
-void FixBnet()
+void FixBnet(BOOL showWindow)
 {
+    static RECT OldWindowPos;
+
     if (!Fullscreen && !IsIconic(hwnd_main))
     {
         HWND sDlgDialog = FindWindowEx(HWND_DESKTOP, NULL, "SDlgDialog", NULL);
 
         if (sDlgDialog)
         {
-            int captsize = GetSystemMetrics(SM_CYCAPTION);
-            SetWindowPos(hwnd_main, 0, 0, captsize > 0 ? -(captsize / 2) : 0, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER);
+            if (showWindow)
+            {
+                SetWindowPos(hwnd_main, 0, OldWindowPos.left, OldWindowPos.top, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER);
+            }
+            else
+            {
+                GetWindowRect(hwnd_main, &OldWindowPos);
+
+                int captsize = GetSystemMetrics(SM_CYCAPTION);
+                SetWindowPos(hwnd_main, 0, 0, captsize > 0 ? -(captsize / 2) : 0, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER);
+            }
         }
     }
 }
@@ -102,7 +113,7 @@ void ToggleFullscreen()
         AdjustWindowRect(&dst, GetWindowLong(hwnd_main, GWL_STYLE), FALSE);
         SetWindowPos(hwnd_main, HWND_TOPMOST, dst.left, dst.top, (dst.right - dst.left), (dst.bottom - dst.top), SWP_SHOWWINDOW);
 
-        FixBnet();
+        FixBnet(FALSE);
     }
     else if (ddraw)
     {
@@ -175,8 +186,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             if (wParam == WA_INACTIVE)
             {
                 MouseUnlock();
-                FixBnet();
             }
+            break;
+        }
+        case WM_ENABLE:
+        {
+            FixBnet((BOOL)wParam);
+
             break;
         }
     }
