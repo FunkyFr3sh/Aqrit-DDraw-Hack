@@ -77,14 +77,15 @@ void FixBnet(BOOL showWindow)
         {
             if (showWindow)
             {
-                SetWindowPos(hwnd_main, 0, OldWindowPos.left, OldWindowPos.top, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER);
+                SetWindowPos(hwnd_main, HWND_TOPMOST, OldWindowPos.left, OldWindowPos.top, 0, 0, SWP_NOSIZE);
             }
             else
             {
                 GetWindowRect(hwnd_main, &OldWindowPos);
 
                 int captsize = GetSystemMetrics(SM_CYCAPTION);
-                SetWindowPos(hwnd_main, 0, 0, captsize > 0 ? -(captsize / 2) : 0, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER);
+                SetWindowPos(hwnd_main, HWND_NOTOPMOST, 0, captsize > 0 ? -(captsize / 2) : 0, 0, 0, SWP_NOSIZE);
+                SetWindowPos(sDlgDialog, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
             }
         }
     }
