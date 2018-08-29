@@ -3,6 +3,8 @@
 #include <windows.h>
 #include <ddraw.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <time.h>
 
 void HookFonts(void);
 
@@ -86,8 +88,11 @@ void ToggleFullscreen()
 
         MouseUnlock();
 
-        ddraw->lpVtbl->SetCooperativeLevel(ddraw, hwnd_main, DDSCL_NORMAL);
-        ddraw->lpVtbl->RestoreDisplayMode(ddraw);
+        if (ddraw)
+        {
+            ddraw->lpVtbl->SetCooperativeLevel(ddraw, hwnd_main, DDSCL_NORMAL);
+            ddraw->lpVtbl->RestoreDisplayMode(ddraw);
+        }
 
         LONG x = (GetSystemMetrics(SM_CXSCREEN) / 2) - (width / 2);
         LONG y = (GetSystemMetrics(SM_CYSCREEN) / 2) - (height / 2);
@@ -99,7 +104,7 @@ void ToggleFullscreen()
 
         FixBnet();
     }
-    else
+    else if (ddraw)
     {
         Fullscreen = TRUE;
 
@@ -207,11 +212,14 @@ HRESULT GoFullscreen( void )
 						ddraw->lpVtbl->SetCooperativeLevel( ddraw, hwnd_main, DDSCL_NORMAL );
 					}
 					ddraw->lpVtbl->Release( ddraw );
+                    ddraw = NULL;
 				}
 			}
 			FreeLibrary( ddraw_dll );
 		}
 	}
+
+    ToggleFullscreen();
 	return DDERR_GENERIC;
 }
 
