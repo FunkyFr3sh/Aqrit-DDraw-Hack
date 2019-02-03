@@ -26,6 +26,8 @@ const LONG OriginalWidth = 640;
 const LONG OriginalHeight = 480;
 LONG CurrentWidth = 640;
 LONG CurrentHeight = 480;
+LONG CurrentX = -32000;
+LONG CurrentY = -32000;
 HBITMAP hOldBitmap; // for cleanup
 char SettingsIniPath[] = ".\\war2_ddraw.ini";
 
@@ -172,9 +174,25 @@ void ToggleFullscreen()
         
         if (!WindowRect.right && !WindowRect.bottom)
         {
-            LONG x = (GetSystemMetrics(SM_CXSCREEN) / 2) - (OriginalWidth / 2);
-            LONG y = (GetSystemMetrics(SM_CYSCREEN) / 2) - (OriginalHeight / 2);
-            WindowRect = { x, y, OriginalWidth + x, OriginalHeight + y };
+            int width = GetInt("Width", OriginalWidth);
+            int height = GetInt("Height", OriginalHeight);
+
+            if (width < OriginalWidth)
+                width = OriginalWidth;
+
+            if (height < OriginalHeight)
+                height = OriginalHeight;
+
+            LONG x = GetInt("PosX", -32000);
+            LONG y = GetInt("PosY", -32000);
+
+            if (x == -32000 || y == -32000)
+            {
+                x = (GetSystemMetrics(SM_CXSCREEN) / 2) - (width / 2);
+                y = (GetSystemMetrics(SM_CYSCREEN) / 2) - (height / 2);
+            }
+
+            WindowRect = { x, y, width + x, height + y };
 
             AdjustWindowRect(&WindowRect, GetWindowLong(hwnd_main, GWL_STYLE), FALSE);
         }
@@ -327,6 +345,22 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                 CurrentWidth = LOWORD(lParam);
                 CurrentHeight = HIWORD(lParam);
             }
+            break;
+        }
+        case WM_MOVE:
+        {
+            if (!Fullscreen)
+            {
+                int x = (int)(short)LOWORD(lParam);
+                int y = (int)(short)HIWORD(lParam);
+
+                if (x != -32000)
+                    CurrentX = x;
+
+                if (y != -32000)
+                    CurrentY = y;
+            }
+
             break;
         }
         case WM_RBUTTONDOWN:
@@ -593,6 +627,23 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	{
 		// todo: delete dibsection...
 		hOldBitmap = (HBITMAP) SelectObject( hdc_offscreen, hOldBitmap );
+
+        char buf[16];
+
+        if (!Fullscreen)
+        {
+            sprintf(buf, "%ld", CurrentWidth);
+            WritePrivateProfileString("ddraw", "Width", buf, SettingsIniPath);
+
+            sprintf(buf, "%ld", CurrentHeight);
+            WritePrivateProfileString("ddraw", "Height", buf, SettingsIniPath);
+        }
+
+        sprintf(buf, "%ld", CurrentX);
+        WritePrivateProfileString("ddraw", "PosX", buf, SettingsIniPath);
+
+        sprintf(buf, "%ld", CurrentY);
+        WritePrivateProfileString("ddraw", "PosY", buf, SettingsIniPath);
 
         WritePrivateProfileString("ddraw", "Windowed", !Fullscreen ? "Yes" : "No", SettingsIniPath);
 	}
