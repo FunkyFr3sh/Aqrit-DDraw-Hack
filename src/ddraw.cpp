@@ -15,14 +15,19 @@ struct {
 
 LRESULT(CALLBACK *OrgWndProc)(HWND, UINT, WPARAM, LPARAM);
 BOOL Fullscreen = TRUE;
+BOOL MaintainAspectRatio = TRUE;
+BOOL AlwaysOnTop = TRUE;
 BOOL MouseLocked;
 RECT WindowRect;
 HWND hwnd_main;
 void* pvBmpBits;
 HDC hdc_offscreen;
-const LONG width = 640;
-const LONG height = 480;
+const LONG OriginalWidth = 640;
+const LONG OriginalHeight = 480;
+LONG CurrentWidth = 640;
+LONG CurrentHeight = 480;
 HBITMAP hOldBitmap; // for cleanup
+char SettingsIniPath[] = ".\\war2_ddraw.ini";
 
 WNDPROC ButtonWndProc_original;
 
@@ -37,13 +42,52 @@ const DWORD* const IDDPal = ddp_vtbl;
 IDirectDraw* ddraw;
 IDirectDrawSurface* dds_primary = NULL;
 
+DWORD GetString(LPCSTR key, LPCSTR defaultValue, LPSTR outString, DWORD outSize)
+{
+    return GetPrivateProfileStringA("ddraw", key, defaultValue, outString, outSize, SettingsIniPath);
+}
+
+BOOL GetBool(LPCSTR key, BOOL defaultValue)
+{
+    char value[8];
+    GetString(key, defaultValue ? "Yes" : "No", value, sizeof(value));
+
+    return (_stricmp(value, "yes") == 0 || _stricmp(value, "true") == 0 || _stricmp(value, "1") == 0);
+}
+
+int GetInt(LPCSTR key, int defaultValue)
+{
+    char defvalue[16];
+    _snprintf(defvalue, sizeof(defvalue), "%d", defaultValue);
+
+    char value[16];
+    GetString(key, defvalue, value, sizeof(value));
+
+    return atoi(value);
+}
+
+BOOL UnadjustWindowRectEx(LPRECT prc, DWORD dwStyle, BOOL fMenu, DWORD dwExStyle)
+{
+    RECT rc;
+    SetRectEmpty(&rc);
+
+    BOOL fRc = AdjustWindowRectEx(&rc, dwStyle, fMenu, dwExStyle);
+    if (fRc)
+    {
+        prc->left -= rc.left;
+        prc->top -= rc.top;
+        prc->right -= rc.right;
+        prc->bottom -= rc.bottom;
+    }
+
+    return fRc;
+}
 
 void MouseLock()
 {
     if (!MouseLocked)
     {
-        RECT rc;
-        GetClientRect(hwnd_main, &rc);
+        RECT rc = { 0, 0, OriginalWidth, OriginalHeight };
 
         POINT pt = { rc.left, rc.top };
         POINT pt2 = { rc.right, rc.bottom };
@@ -77,14 +121,33 @@ void FixBnet(BOOL showWindow)
         {
             if (showWindow)
             {
-                SetWindowPos(hwnd_main, HWND_TOPMOST, WindowRect.left, WindowRect.top, 0, 0, SWP_NOSIZE);
+                SetWindowPos(
+                    hwnd_main, 
+                    AlwaysOnTop ? HWND_TOPMOST : HWND_NOTOPMOST,
+                    WindowRect.left, 
+                    WindowRect.top, 
+                    WindowRect.right - WindowRect.left,
+                    WindowRect.bottom - WindowRect.top,
+                    0);
             }
             else
             {
                 GetWindowRect(hwnd_main, &WindowRect);
 
+                RECT rc = { 0, 0, OriginalWidth, OriginalHeight };
+                AdjustWindowRect(&rc, GetWindowLong(hwnd_main, GWL_STYLE), FALSE);
+
                 int captsize = GetSystemMetrics(SM_CYCAPTION);
-                SetWindowPos(hwnd_main, HWND_NOTOPMOST, 0, captsize > 0 ? -(captsize / 2) : 0, 0, 0, SWP_NOSIZE);
+
+                SetWindowPos(
+                    hwnd_main, 
+                    HWND_NOTOPMOST, 
+                    0,
+                    captsize > 0 ? -(captsize / 2) : 0,
+                    rc.right - rc.left, 
+                    rc.bottom - rc.top, 
+                    0);
+
                 SetWindowPos(sDlgDialog, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
             }
         }
@@ -105,20 +168,20 @@ void ToggleFullscreen()
             ddraw->lpVtbl->RestoreDisplayMode(ddraw);
         }
 
-        SetWindowLong(hwnd_main, GWL_STYLE, GetWindowLong(hwnd_main, GWL_STYLE) | WS_CAPTION | WS_BORDER | WS_SYSMENU | WS_MINIMIZEBOX);
+        SetWindowLong(hwnd_main, GWL_STYLE, GetWindowLong(hwnd_main, GWL_STYLE) | WS_OVERLAPPEDWINDOW);
         
         if (!WindowRect.right && !WindowRect.bottom)
         {
-            LONG x = (GetSystemMetrics(SM_CXSCREEN) / 2) - (width / 2);
-            LONG y = (GetSystemMetrics(SM_CYSCREEN) / 2) - (height / 2);
-            WindowRect = { x, y, width + x, height + y };
+            LONG x = (GetSystemMetrics(SM_CXSCREEN) / 2) - (OriginalWidth / 2);
+            LONG y = (GetSystemMetrics(SM_CYSCREEN) / 2) - (OriginalHeight / 2);
+            WindowRect = { x, y, OriginalWidth + x, OriginalHeight + y };
 
             AdjustWindowRect(&WindowRect, GetWindowLong(hwnd_main, GWL_STYLE), FALSE);
         }
 
         SetWindowPos(
             hwnd_main, 
-            HWND_TOPMOST, 
+            AlwaysOnTop ? HWND_TOPMOST : HWND_NOTOPMOST,
             WindowRect.left,
             WindowRect.top,
             (WindowRect.right - WindowRect.left),
@@ -136,11 +199,12 @@ void ToggleFullscreen()
         if (!FindWindowEx(HWND_DESKTOP, NULL, "SDlgDialog", NULL))
             GetWindowRect(hwnd_main, &WindowRect);
 
-        SetWindowLong(hwnd_main, GWL_STYLE, GetWindowLong(hwnd_main, GWL_STYLE) & ~(WS_CAPTION | WS_THICKFRAME | WS_SYSMENU));
-        SetWindowPos(hwnd_main, 0, 0, 0, width, height, SWP_NOZORDER | SWP_NOOWNERZORDER);
+        SetWindowLong(hwnd_main, GWL_STYLE, GetWindowLong(hwnd_main, GWL_STYLE) & ~(WS_CAPTION | WS_THICKFRAME | WS_MINIMIZE | WS_MAXIMIZE | WS_SYSMENU));
+        
+        SetWindowPos(hwnd_main, HWND_TOPMOST, 0, 0, OriginalWidth, OriginalHeight, SWP_SHOWWINDOW);
 
         ddraw->lpVtbl->SetCooperativeLevel(ddraw, hwnd_main, DDSCL_FULLSCREEN | DDSCL_EXCLUSIVE);
-        ddraw->lpVtbl->SetDisplayMode(ddraw, width, height, 32);
+        ddraw->lpVtbl->SetDisplayMode(ddraw, OriginalWidth, OriginalHeight, 32);
     }
 }
 
@@ -148,6 +212,123 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     switch (uMsg)
     {
+        case WM_SIZING:
+        {
+            RECT *windowrc = (RECT *)lParam;
+
+            if (!Fullscreen)
+            {
+                RECT clientrc = { 0 };
+
+                // maintain aspect ratio
+                if (MaintainAspectRatio &&
+                    CopyRect(&clientrc, windowrc) &&
+                    UnadjustWindowRectEx(&clientrc, GetWindowLong(hWnd, GWL_STYLE), FALSE, GetWindowLong(hWnd, GWL_EXSTYLE)) &&
+                    SetRect(&clientrc, 0, 0, clientrc.right - clientrc.left, clientrc.bottom - clientrc.top))
+                {
+                    float scaleH = (float)OriginalHeight / OriginalWidth;
+                    float scaleW = (float)OriginalWidth / OriginalHeight;
+
+                    switch (wParam)
+                    {
+                        case WMSZ_BOTTOMLEFT:
+                        case WMSZ_BOTTOMRIGHT:
+                        case WMSZ_LEFT:
+                        case WMSZ_RIGHT:
+                        {
+                            windowrc->bottom += scaleH * clientrc.right - clientrc.bottom;
+                            break;
+                        }
+                        case WMSZ_TOP:
+                        case WMSZ_BOTTOM:
+                        {
+                            windowrc->right += scaleW * clientrc.bottom - clientrc.right;
+                            break;
+                        }
+                        case WMSZ_TOPRIGHT:
+                        case WMSZ_TOPLEFT:
+                        {
+                            windowrc->top -= scaleH * clientrc.right - clientrc.bottom;
+                            break;
+                        }
+                    }
+                }
+
+                //enforce minimum window size
+                if (CopyRect(&clientrc, windowrc) &&
+                    UnadjustWindowRectEx(&clientrc, GetWindowLong(hWnd, GWL_STYLE), FALSE, GetWindowLong(hWnd, GWL_EXSTYLE)) &&
+                    SetRect(&clientrc, 0, 0, clientrc.right - clientrc.left, clientrc.bottom - clientrc.top))
+                {
+                    if (clientrc.right < OriginalWidth)
+                    {
+                        switch (wParam)
+                        {
+                            case WMSZ_TOPRIGHT:
+                            case WMSZ_BOTTOMRIGHT:
+                            case WMSZ_RIGHT:
+                            case WMSZ_BOTTOM:
+                            case WMSZ_TOP:
+                            {
+                                windowrc->right += OriginalWidth - clientrc.right;
+                                break;
+                            }
+                            case WMSZ_TOPLEFT:
+                            case WMSZ_BOTTOMLEFT:
+                            case WMSZ_LEFT:
+                            {
+                                windowrc->left -= OriginalWidth - clientrc.right;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (clientrc.bottom < OriginalHeight)
+                    {
+                        switch (wParam)
+                        {
+                            case WMSZ_BOTTOMLEFT:
+                            case WMSZ_BOTTOMRIGHT:
+                            case WMSZ_BOTTOM:
+                            case WMSZ_RIGHT:
+                            case WMSZ_LEFT:
+                            {
+                                windowrc->bottom += OriginalHeight - clientrc.bottom;
+                                break;
+                            }
+                            case WMSZ_TOPLEFT:
+                            case WMSZ_TOPRIGHT:
+                            case WMSZ_TOP:
+                            {
+                                windowrc->top -= OriginalHeight - clientrc.bottom;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                //save new window position
+                if (CopyRect(&clientrc, windowrc) &&
+                    UnadjustWindowRectEx(&clientrc, GetWindowLong(hWnd, GWL_STYLE), FALSE, GetWindowLong(hWnd, GWL_EXSTYLE)))
+                {
+                    //WindowRect.left = clientrc.left;
+                    //WindowRect.top = clientrc.top;
+                    CurrentWidth = clientrc.right - clientrc.left;
+                    CurrentHeight = clientrc.bottom - clientrc.top;
+                }
+
+                return TRUE;
+            }
+            break;
+        }
+        case WM_SIZE:
+        {
+            if (wParam == SIZE_RESTORED || wParam == SIZE_MAXIMIZED)
+            {
+                CurrentWidth = LOWORD(lParam);
+                CurrentHeight = HIWORD(lParam);
+            }
+            break;
+        }
         case WM_RBUTTONDOWN:
         {
             if (!MouseLocked && !FindWindowEx(HWND_DESKTOP, NULL, "SDlgDialog", NULL))
@@ -234,24 +415,34 @@ HRESULT GoFullscreen( void )
 			{
 				if( SUCCEEDED( pfnDirectDrawCreate( (GUID*)0, &ddraw, NULL ) ) )
 				{ 
-					if( SUCCEEDED( ddraw->lpVtbl->SetCooperativeLevel( ddraw, hwnd_main, DDSCL_FULLSCREEN | DDSCL_EXCLUSIVE ) ) )
-					{
-						if( SUCCEEDED( ddraw->lpVtbl->SetDisplayMode( ddraw, width, height, 32 ) ) )
-						{
-							RtlSecureZeroMemory(&ddsd,sizeof(ddsd));
-							ddsd.dwSize = sizeof(ddsd);
-							ddsd.dwFlags = DDSD_CAPS;
-							ddsd.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE;
-							if( SUCCEEDED( ddraw->lpVtbl->CreateSurface( ddraw, &ddsd, &dds_primary, NULL)))
-							{
-								return DD_OK;
-							}
-							ddraw->lpVtbl->RestoreDisplayMode( ddraw );
-						}
-						ddraw->lpVtbl->SetCooperativeLevel( ddraw, hwnd_main, DDSCL_NORMAL );
-					}
-					ddraw->lpVtbl->Release( ddraw );
-                    ddraw = NULL;
+                    if (Fullscreen)
+                    {
+                        if (SUCCEEDED(ddraw->lpVtbl->SetCooperativeLevel(ddraw, hwnd_main, DDSCL_FULLSCREEN | DDSCL_EXCLUSIVE)))
+                        {
+                            if (SUCCEEDED(ddraw->lpVtbl->SetDisplayMode(ddraw, OriginalWidth, OriginalHeight, 32)))
+                            {
+                                RtlSecureZeroMemory(&ddsd, sizeof(ddsd));
+                                ddsd.dwSize = sizeof(ddsd);
+                                ddsd.dwFlags = DDSD_CAPS;
+                                ddsd.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE;
+                                if (SUCCEEDED(ddraw->lpVtbl->CreateSurface(ddraw, &ddsd, &dds_primary, NULL)))
+                                {
+                                    return DD_OK;
+                                }
+                                ddraw->lpVtbl->RestoreDisplayMode(ddraw);
+                            }
+                            ddraw->lpVtbl->SetCooperativeLevel(ddraw, hwnd_main, DDSCL_NORMAL);
+                        }
+                        ddraw->lpVtbl->Release(ddraw);
+                        ddraw = NULL;
+                    }
+                    else
+                    {
+                        Fullscreen = TRUE;
+                        ToggleFullscreen();
+                        return DD_OK;
+                    }
+                        
 				}
 			}
 			FreeLibrary( ddraw_dll );
@@ -308,7 +499,22 @@ void ToScreen( void )
 		// simpler/faster blit that also keeps screen shots (mostly) working...
 		// no screen flash when ss is taken?
 		hdc = GetDC( hwnd_main );
-		BitBlt( hdc, 0, 0, 640, 480, hdc_offscreen, 0, 0, SRCCOPY );
+		//BitBlt( hdc, 0, 0, WindowSize.right, WindowSize.bottom, hdc_offscreen, 0, 0, SRCCOPY );
+
+        StretchBlt(
+            hdc,
+            0,
+            0,
+            CurrentWidth, 
+            CurrentHeight,
+            hdc_offscreen,
+            0,
+            0,
+            OriginalWidth,
+            OriginalHeight,
+            SRCCOPY
+        );
+
 		ReleaseDC( hwnd_main, hdc );
 		return;
 	}
@@ -318,7 +524,7 @@ void ToScreen( void )
 	clear_color = RGB( quad.rgbRed, quad.rgbGreen, quad.rgbBlue );
 	
 	hdc = GetDC( hwnd_main );
-	GdiTransparentBlt( hdc, 0, 0, 640, 480, hdc_offscreen, 0, 0, 640, 480, clear_color );
+	GdiTransparentBlt( hdc, 0, 0, OriginalWidth, OriginalHeight, hdc_offscreen, 0, 0, OriginalWidth, OriginalHeight, clear_color );
 	ReleaseDC( hwnd_main, hdc );
 
 	// blast it out to all top-level SDlgDialog windows... the realwtf
@@ -336,7 +542,7 @@ void ToScreen( void )
 
 	// erase ( breaks screen shots, use alt+prtnscr instead )
 	p = (DWORD*) pvBmpBits;
-	for( i = 0; i < 640 * 480 / 4; i++ ) p[i] = 0xFEFEFEFE;
+	for( i = 0; i < OriginalWidth * OriginalHeight / 4; i++ ) p[i] = 0xFEFEFEFE;
 
 	return;
 }
@@ -353,8 +559,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 
 		// create offscreen drawing surface
 		bmi.bmiHeader.biSize = sizeof( BITMAPINFOHEADER ); 
-		bmi.bmiHeader.biWidth = width;
-		bmi.bmiHeader.biHeight = 0 - height;
+		bmi.bmiHeader.biWidth = OriginalWidth;
+		bmi.bmiHeader.biHeight = 0 - OriginalHeight;
 		bmi.bmiHeader.biPlanes = 1;
 		bmi.bmiHeader.biBitCount = 8;
 		bmi.bmiHeader.biCompression = BI_RGB;
@@ -377,12 +583,18 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 
 		// Disable AntiAliased Fonts
 		HookFonts();
+
+        Fullscreen = !GetBool("Windowed", FALSE);
+        MaintainAspectRatio = GetBool("MaintainAspectRatio", TRUE);
+        AlwaysOnTop = GetBool("AlwaysOnTop", TRUE);
 	}
 
 	if(ul_reason_for_call == DLL_PROCESS_DETACH )
 	{
 		// todo: delete dibsection...
 		hOldBitmap = (HBITMAP) SelectObject( hdc_offscreen, hOldBitmap );
+
+        WritePrivateProfileString("ddraw", "Windowed", !Fullscreen ? "Yes" : "No", SettingsIniPath);
 	}
 	return TRUE;
 }
@@ -415,7 +627,7 @@ HRESULT __stdcall dd_SetDisplayMode( void* This, DWORD dwWidth, DWORD dwHeight, 
 HRESULT __stdcall dds_Lock( void* This, LPRECT lpDestRect, LPDDSURFACEDESC lpDDSurfaceDesc, DWORD dwFlags, HANDLE hEvent )
 {
 	GdiFlush();
-	lpDDSurfaceDesc->lPitch = 640;
+	lpDDSurfaceDesc->lPitch = OriginalWidth;
 	lpDDSurfaceDesc->lpSurface = pvBmpBits;
 
 	return 0;
@@ -455,7 +667,7 @@ HRESULT __stdcall dd_SetCooperativeLevel( void* This, HWND hWnd, DWORD dwFlags )
 
 	// the window size is the original desktop resolution...
 	// which is obnoxious when not running in fullscreen.
-	SetWindowPos( hWnd, HWND_TOP, 0, 0, width, height, SWP_NOOWNERZORDER | SWP_NOZORDER );
+	SetWindowPos( hWnd, HWND_TOP, 0, 0, OriginalWidth, OriginalHeight, SWP_NOOWNERZORDER | SWP_NOZORDER );
 
 	return 0; 
 }
