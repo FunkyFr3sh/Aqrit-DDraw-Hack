@@ -17,6 +17,7 @@ LRESULT(CALLBACK *OrgWndProc)(HWND, UINT, WPARAM, LPARAM);
 BOOL Fullscreen = TRUE;
 BOOL MaintainAspectRatio = TRUE;
 BOOL AlwaysOnTop = TRUE;
+BOOL ShowWindowFrame = TRUE;
 BOOL MouseLocked;
 RECT WindowRect;
 HWND hwnd_main;
@@ -158,7 +159,7 @@ void FixBnet(BOOL showWindow)
     }
 }
 
-void ToggleFullscreen()
+void ToggleFullscreen(BOOL fakeFullscreen)
 {
     if (Fullscreen)
     {
@@ -172,12 +173,29 @@ void ToggleFullscreen()
             ddraw->lpVtbl->RestoreDisplayMode(ddraw);
         }
 
-        SetWindowLong(hwnd_main, GWL_STYLE, GetWindowLong(hwnd_main, GWL_STYLE) | WS_OVERLAPPEDWINDOW);
-        
+        if (ShowWindowFrame && !fakeFullscreen)
+        {
+            SetWindowLong(hwnd_main, GWL_STYLE, GetWindowLong(hwnd_main, GWL_STYLE) | WS_OVERLAPPEDWINDOW);
+        }
+        else
+        {
+            SetWindowLong(hwnd_main, GWL_STYLE, GetWindowLong(hwnd_main, GWL_STYLE) & ~(WS_CAPTION | WS_THICKFRAME | WS_MINIMIZE | WS_MAXIMIZE | WS_SYSMENU));
+        }
+
         if (!WindowRect.right && !WindowRect.bottom)
         {
+            int screenWidth = GetSystemMetrics(SM_CXSCREEN);
+            int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+
             int width = GetInt("Width", OriginalWidth);
             int height = GetInt("Height", OriginalHeight);
+
+            if (fakeFullscreen)
+            {
+                width = screenWidth;
+                height = screenHeight;
+                ShowWindowFrame = FALSE;
+            }
 
             if (width < OriginalWidth)
                 width = OriginalWidth;
@@ -190,8 +208,14 @@ void ToggleFullscreen()
 
             if (x == -32000 || y == -32000)
             {
-                x = (GetSystemMetrics(SM_CXSCREEN) / 2) - (width / 2);
-                y = (GetSystemMetrics(SM_CYSCREEN) / 2) - (height / 2);
+                x = (screenWidth / 2) - (width / 2);
+                y = (screenHeight / 2) - (height / 2);
+            }
+
+            if (fakeFullscreen)
+            {
+                x = 0;
+                y = 0;
             }
 
             WindowRect = { x, y, width + x, height + y };
@@ -504,7 +528,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         {
             if (wParam == VK_RETURN)
             {
-                ToggleFullscreen();
+                ToggleFullscreen(FALSE);
                 return 0;
             }
             if (wParam == VK_BACK)
@@ -587,7 +611,7 @@ HRESULT GoFullscreen( void )
                     else
                     {
                         Fullscreen = TRUE;
-                        ToggleFullscreen();
+                        ToggleFullscreen(FALSE);
                         return DD_OK;
                     }
                         
@@ -597,7 +621,7 @@ HRESULT GoFullscreen( void )
 		}
 	}
 
-    ToggleFullscreen();
+    ToggleFullscreen(TRUE);
 	return DDERR_GENERIC;
 }
 
@@ -735,6 +759,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
         Fullscreen = !GetBool("Windowed", FALSE);
         MaintainAspectRatio = GetBool("MaintainAspectRatio", TRUE);
         AlwaysOnTop = GetBool("AlwaysOnTop", TRUE);
+        ShowWindowFrame = GetBool("ShowWindowFrame", TRUE);
 	}
 
 	if(ul_reason_for_call == DLL_PROCESS_DETACH )
@@ -760,6 +785,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
         WritePrivateProfileString("ddraw", "PosY", buf, SettingsIniPath);
 
         WritePrivateProfileString("ddraw", "Windowed", !Fullscreen ? "Yes" : "No", SettingsIniPath);
+
+        WritePrivateProfileString("ddraw", "ShowWindowFrame", ShowWindowFrame ? "Yes" : "No", SettingsIniPath);
 	}
 	return TRUE;
 }
