@@ -28,6 +28,8 @@ LONG CurrentWidth = 640;
 LONG CurrentHeight = 480;
 LONG CurrentX = -32000;
 LONG CurrentY = -32000;
+LONG RenderX;
+LONG RenderY;
 HBITMAP hOldBitmap; // for cleanup
 char SettingsIniPath[] = ".\\war2_ddraw.ini";
 
@@ -330,8 +332,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                 {
                     //WindowRect.left = clientrc.left;
                     //WindowRect.top = clientrc.top;
-                    CurrentWidth = clientrc.right - clientrc.left;
-                    CurrentHeight = clientrc.bottom - clientrc.top;
+                    //CurrentWidth = clientrc.right - clientrc.left;
+                    //CurrentHeight = clientrc.bottom - clientrc.top;
                 }
 
                 return TRUE;
@@ -344,6 +346,27 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             {
                 CurrentWidth = LOWORD(lParam);
                 CurrentHeight = HIWORD(lParam);
+
+                if (MaintainAspectRatio)
+                {
+                    LONG width = CurrentWidth;
+                    LONG height = ((float)OriginalHeight / OriginalWidth) * CurrentWidth;
+
+                    if (height > CurrentHeight)
+                    {
+                        width = ((float)width / height) * CurrentHeight;
+                        height = CurrentHeight;
+                    }
+
+                    RenderY = CurrentHeight / 2 - height / 2;
+                    RenderX = CurrentWidth / 2 - width / 2;
+
+                    RECT rc = { 0, 0, CurrentWidth, CurrentHeight };
+
+                    HDC hdc = GetDC(hwnd_main);
+                    FillRect(hdc, &rc, (HBRUSH)GetStockObject(BLACK_BRUSH));
+                    ReleaseDC(hwnd_main, hdc);
+                }
             }
             break;
         }
@@ -361,6 +384,97 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                     CurrentY = y;
             }
 
+            break;
+        }
+        case WM_SETCURSOR:
+        {
+            // show resize cursor on window borders
+            if ((HWND)wParam == hwnd_main)
+            {
+                WORD message = HIWORD(lParam);
+
+                if (message == WM_MOUSEMOVE)
+                {
+                    WORD htcode = LOWORD(lParam);
+
+                    switch (htcode)
+                    {
+                        case HTCAPTION:
+                        case HTMINBUTTON:
+                        case HTMAXBUTTON:
+                        case HTCLOSE:
+                        case HTBOTTOM:
+                        case HTBOTTOMLEFT:
+                        case HTBOTTOMRIGHT:
+                        case HTLEFT:
+                        case HTRIGHT:
+                        case HTTOP:
+                        case HTTOPLEFT:
+                        case HTTOPRIGHT:
+                        {
+                            CURSORINFO ci;
+                            ci.cbSize = sizeof(CURSORINFO);
+
+                            if (GetCursorInfo(&ci) && ci.flags == 0)
+                                while (ShowCursor(TRUE) < 0);
+   
+                            return DefWindowProc(hWnd, uMsg, wParam, lParam);
+                        }
+                        default:
+                        {
+                            HWND sDlgDialog = FindWindowEx(HWND_DESKTOP, NULL, "SDlgDialog", NULL);
+                            if (!sDlgDialog)
+                            {
+                                CURSORINFO ci;
+                                ci.cbSize = sizeof(CURSORINFO);
+
+                                if (GetCursorInfo(&ci) && ci.flags != 0)
+                                    while (ShowCursor(FALSE) > 0);
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+
+            break;
+        }
+        case WM_NCLBUTTONDBLCLK:
+        {
+            RECT rc;
+            if (SystemParametersInfo(SPI_GETWORKAREA, 0, &rc, 0))
+            {
+                SetWindowPos(
+                    hwnd_main,
+                    AlwaysOnTop ? HWND_TOPMOST : HWND_NOTOPMOST,
+                    rc.left,
+                    rc.top,
+                    (rc.right - rc.left),
+                    (rc.bottom - rc.top),
+                    SWP_SHOWWINDOW);
+            }
+
+            return 0;
+        }
+        case WM_SYSCOMMAND:
+        {
+            if (wParam == SC_MAXIMIZE)
+            {
+                RECT rc;
+                if (SystemParametersInfo(SPI_GETWORKAREA, 0, &rc, 0))
+                {
+                    SetWindowPos(
+                        hwnd_main,
+                        AlwaysOnTop ? HWND_TOPMOST : HWND_NOTOPMOST,
+                        rc.left,
+                        rc.top,
+                        (rc.right - rc.left),
+                        (rc.bottom - rc.top),
+                        SWP_SHOWWINDOW);
+                }
+
+                return 0;
+            }
             break;
         }
         case WM_RBUTTONDOWN:
@@ -537,10 +651,10 @@ void ToScreen( void )
 
         StretchBlt(
             hdc,
-            0,
-            0,
-            CurrentWidth, 
-            CurrentHeight,
+            RenderX,
+            RenderY,
+            CurrentWidth - (RenderX * 2), 
+            CurrentHeight - (RenderY * 2),
             hdc_offscreen,
             0,
             0,
