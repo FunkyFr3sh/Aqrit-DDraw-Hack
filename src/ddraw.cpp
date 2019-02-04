@@ -446,15 +446,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                         }
                         default:
                         {
-                            HWND sDlgDialog = FindWindowEx(HWND_DESKTOP, NULL, "SDlgDialog", NULL);
-                            if (!sDlgDialog)
-                            {
-                                CURSORINFO ci;
-                                ci.cbSize = sizeof(CURSORINFO);
+                            
+                            CURSORINFO ci;
+                            ci.cbSize = sizeof(CURSORINFO);
 
-                                if (GetCursorInfo(&ci) && ci.flags != 0)
+                            if (GetCursorInfo(&ci) && ci.flags != 0)
+                            {
+                                HWND sDlgDialog = FindWindowEx(HWND_DESKTOP, NULL, "SDlgDialog", NULL);
+                                if (!sDlgDialog)
+                                {
                                     while (ShowCursor(FALSE) > 0);
+                                }
                             }
+                                    
                             break;
                         }
                     }
