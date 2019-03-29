@@ -760,6 +760,29 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 		// Disable AntiAliased Fonts
 		HookFonts();
 
+        if (GetFileAttributes(SettingsIniPath) == INVALID_FILE_ATTRIBUTES)
+        {
+            FILE *fh = fopen(SettingsIniPath, "w");
+            if (fh)
+            {
+                fputs(
+                    "[ddraw]\n"
+                    "Windowed=No\n"
+                    "MaintainAspectRatio=Yes\n"
+                    "AlwaysOnTop=Yes\n"
+                    "ShowWindowFrame=Yes\n"
+                    "Width=640\n"
+                    "Height=480\n"
+                    "PosX=-32000\n"
+                    "PosY=-32000\n"
+                    "\n"
+
+                    , fh);
+
+                fclose(fh);
+            }
+        }
+
         Fullscreen = !GetBool("Windowed", FALSE);
         MaintainAspectRatio = GetBool("MaintainAspectRatio", TRUE);
         AlwaysOnTop = GetBool("AlwaysOnTop", TRUE);
