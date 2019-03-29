@@ -161,7 +161,7 @@ void FixBnet(BOOL showWindow)
 
 void ToggleFullscreen(BOOL fakeFullscreen)
 {
-    if (Fullscreen)
+    if (Fullscreen || fakeFullscreen)
     {
         Fullscreen = FALSE;
 
@@ -195,6 +195,7 @@ void ToggleFullscreen(BOOL fakeFullscreen)
                 width = screenWidth;
                 height = screenHeight;
                 ShowWindowFrame = FALSE;
+                AlwaysOnTop = FALSE;
             }
 
             if (width < OriginalWidth)
@@ -626,6 +627,7 @@ HRESULT GoFullscreen( void )
 	}
 
     ToggleFullscreen(TRUE);
+    MouseLock();
 	return DDERR_GENERIC;
 }
 
