@@ -15,6 +15,7 @@ struct {
 
 LRESULT(CALLBACK *OrgWndProc)(HWND, UINT, WPARAM, LPARAM);
 BOOL Fullscreen = TRUE;
+BOOL WindowedFullscreen = FALSE;
 BOOL MaintainAspectRatio = TRUE;
 BOOL AlwaysOnTop = TRUE;
 BOOL ShowWindowFrame = TRUE;
@@ -116,7 +117,7 @@ void MouseUnlock()
     }
 }
 
-void FixBnet(BOOL showWindow)
+BOOL FixBnet(BOOL showWindow)
 {
     if (!Fullscreen && !IsIconic(hwnd_main))
     {
@@ -155,8 +156,12 @@ void FixBnet(BOOL showWindow)
 
                 SetWindowPos(sDlgDialog, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
             }
+
+            return TRUE;
         }
     }
+
+    return FALSE;
 }
 
 void ToggleFullscreen(BOOL fakeFullscreen)
@@ -198,6 +203,9 @@ void ToggleFullscreen(BOOL fakeFullscreen)
                 AlwaysOnTop = FALSE;
             }
 
+            if (!ShowWindowFrame && width == screenWidth && height == screenHeight)
+                WindowedFullscreen = TRUE;
+
             if (width < OriginalWidth)
                 width = OriginalWidth;
 
@@ -233,7 +241,9 @@ void ToggleFullscreen(BOOL fakeFullscreen)
             (WindowRect.bottom - WindowRect.top),
             SWP_SHOWWINDOW);
 
-        FixBnet(FALSE);
+
+        if (!FixBnet(FALSE) && WindowedFullscreen)
+            MouseLock();
     }
     else if (ddraw)
     {
@@ -250,6 +260,8 @@ void ToggleFullscreen(BOOL fakeFullscreen)
 
         ddraw->lpVtbl->SetCooperativeLevel(ddraw, hwnd_main, DDSCL_FULLSCREEN | DDSCL_EXCLUSIVE);
         ddraw->lpVtbl->SetDisplayMode(ddraw, OriginalWidth, OriginalHeight, 32);
+
+        MouseLock();
     }
 }
 
@@ -560,6 +572,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             {
                 MouseUnlock();
             }
+            else if (wParam == WA_ACTIVE)
+            {
+                if (Fullscreen || WindowedFullscreen)
+                    MouseLock();
+            }
             break;
         }
         case WM_ENABLE:
@@ -604,6 +621,7 @@ HRESULT GoFullscreen( void )
                                 ddsd.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE;
                                 if (SUCCEEDED(ddraw->lpVtbl->CreateSurface(ddraw, &ddsd, &dds_primary, NULL)))
                                 {
+                                    MouseLock();
                                     return DD_OK;
                                 }
                                 ddraw->lpVtbl->RestoreDisplayMode(ddraw);
