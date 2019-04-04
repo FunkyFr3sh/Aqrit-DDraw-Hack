@@ -425,6 +425,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         }
         case WM_SETCURSOR:
         {
+            if (Fullscreen || WindowedFullscreen)
+                break;
+
             // show resize cursor on window borders
             if ((HWND)wParam == hwnd_main)
             {
