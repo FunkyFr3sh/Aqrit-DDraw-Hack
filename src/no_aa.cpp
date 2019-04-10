@@ -56,7 +56,7 @@ HFONT __stdcall CreateFontIndirectA_hookproc( CONST LOGFONTA* lplf )
 HFONT __stdcall CreateFontA_hookproc( int nHeight, int nWidth, int nEscapement, int nOrientation, int fnWeight,
 	DWORD fdwItalic, DWORD fdwUnderline, DWORD fdwStrikeOut, DWORD fdwCharSet, 
 	DWORD fdwOutputPrecision, DWORD fdwClipPrecision, DWORD fdwQuality, DWORD fdwPitchAndFamily,
-    LPCTSTR lpszFace )
+	LPCTSTR lpszFace )
 {
 	fdwQuality = NONANTIALIASED_QUALITY;
 	return CreateFontA_origproc( nHeight, nWidth, nEscapement, nOrientation, fnWeight, 
