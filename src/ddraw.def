@@ -2,3 +2,4 @@ LIBRARY     ddraw.dll
 
 EXPORTS
     DirectDrawCreate            @1
+    pvBmpBits                   DATA
