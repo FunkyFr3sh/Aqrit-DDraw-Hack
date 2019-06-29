@@ -425,6 +425,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		}
 		case WM_SETCURSOR:
 		{
+			/*
 			// show resize cursor on window borders
 			if ((HWND)wParam == hwnd_main)
 			{
@@ -477,7 +478,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 					}
 				}
 			}
-
+			*/
 			break;
 		}
 		case WM_NCLBUTTONDBLCLK:
