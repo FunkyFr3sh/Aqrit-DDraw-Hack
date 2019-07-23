@@ -790,7 +790,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 					"[ddraw]\n"
 					"Windowed=No\n"
 					"MaintainAspectRatio=Yes\n"
-					"AlwaysOnTop=Yes\n"
+					"AlwaysOnTop=No\n"
 					"ShowWindowFrame=Yes\n"
 					"Width=640\n"
 					"Height=480\n"
@@ -806,7 +806,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 
 		Fullscreen = !GetBool("Windowed", FALSE);
 		MaintainAspectRatio = GetBool("MaintainAspectRatio", TRUE);
-		AlwaysOnTop = GetBool("AlwaysOnTop", TRUE);
+		AlwaysOnTop = Fullscreen || GetBool("AlwaysOnTop", FALSE);
 		ShowWindowFrame = GetBool("ShowWindowFrame", TRUE);
 	}
 
