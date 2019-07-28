@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <time.h>
+#include "hook.h"
 
 void HookFonts(void);
 
@@ -47,6 +48,11 @@ const DWORD* const IDDPal = ddp_vtbl;
 // real ddraw for fullscreen
 IDirectDraw* ddraw;
 IDirectDrawSurface* dds_primary = NULL;
+
+typedef BOOL(WINAPI* GETCURSORPOSPROC)(LPPOINT);
+GETCURSORPOSPROC real_GetCursorPos = GetCursorPos;
+BOOL WINAPI fake_GetCursorPos(LPPOINT lpPoint) { return real_GetCursorPos(lpPoint); }
+
 
 DWORD GetString(LPCSTR key, LPCSTR defaultValue, LPSTR outString, DWORD outSize)
 {
@@ -808,6 +814,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 		MaintainAspectRatio = GetBool("MaintainAspectRatio", TRUE);
 		AlwaysOnTop = Fullscreen || GetBool("AlwaysOnTop", FALSE);
 		ShowWindowFrame = GetBool("ShowWindowFrame", TRUE);
+
+		//Hook_Create((PROC)fake_GetCursorPos, (PROC *)&real_GetCursorPos);
 	}
 
 	if(ul_reason_for_call == DLL_PROCESS_DETACH )
@@ -837,6 +845,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 		WritePrivateProfileString("ddraw", "ShowWindowFrame", ShowWindowFrame ? "Yes" : "No", SettingsIniPath);
 
 		WritePrivateProfileString("ddraw", "AlwaysOnTop", AlwaysOnTop ? "Yes" : "No", SettingsIniPath);
+
+		//Hook_Revert((PROC)fake_GetCursorPos, (PROC *)&real_GetCursorPos);
 	}
 	return TRUE;
 }
