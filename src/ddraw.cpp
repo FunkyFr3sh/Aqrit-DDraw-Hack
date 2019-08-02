@@ -49,10 +49,78 @@ const DWORD* const IDDPal = ddp_vtbl;
 IDirectDraw* ddraw;
 IDirectDrawSurface* dds_primary = NULL;
 
-typedef BOOL(WINAPI* GETCURSORPOSPROC)(LPPOINT);
-GETCURSORPOSPROC real_GetCursorPos = GetCursorPos;
-BOOL WINAPI fake_GetCursorPos(LPPOINT lpPoint) { return real_GetCursorPos(lpPoint); }
+typedef BOOL(WINAPI* ENABLEWINDOWPROC)(HWND, BOOL);
+typedef HWND(WINAPI* CREATEWINDOWEXAPROC)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
+typedef BOOL(WINAPI* CLIENTTOSCREENPROC)(HWND, LPPOINT);
+typedef BOOL(WINAPI* SCREENTOCLIENTPROC)(HWND, LPPOINT);
+typedef BOOL(WINAPI* GETWINDOWRECTPROC)(HWND, LPRECT);
 
+ENABLEWINDOWPROC real_EnableWindow = EnableWindow;
+CREATEWINDOWEXAPROC real_CreateWindowExA = CreateWindowExA;
+CLIENTTOSCREENPROC real_ClientToScreen = ClientToScreen;
+SCREENTOCLIENTPROC real_ScreenToClient = ScreenToClient;
+GETWINDOWRECTPROC real_GetWindowRect = GetWindowRect;
+
+BOOL WINAPI fake_ClientToScreen(HWND hWnd, LPPOINT lpPoint)
+{
+	if (hwnd_main != hWnd)
+		return real_ClientToScreen(hWnd, lpPoint) && real_ScreenToClient(hwnd_main, lpPoint);
+
+	return TRUE;
+}
+
+BOOL WINAPI fake_ScreenToClient(HWND hWnd, LPPOINT lpPoint)
+{
+	if (hwnd_main != hWnd)
+		return real_ClientToScreen(hwnd_main, lpPoint) && real_ScreenToClient(hWnd, lpPoint);
+
+	return TRUE;
+}
+
+BOOL WINAPI fake_GetWindowRect(HWND hWnd, LPRECT lpRect)
+{
+	if (hwnd_main != hWnd)
+		return real_GetWindowRect(hWnd, lpRect) && MapWindowPoints(HWND_DESKTOP, hwnd_main, (LPPOINT)lpRect, 2);
+
+	return real_GetWindowRect(hWnd, lpRect);
+}
+
+BOOL WINAPI fake_EnableWindow(HWND hWnd, BOOL bEnable)
+{
+	return real_EnableWindow(hWnd, bEnable);
+
+	return FALSE;
+}
+
+HWND WINAPI fake_CreateWindowExA(
+	DWORD dwExStyle, LPCSTR lpClassName, LPCSTR lpWindowName, DWORD dwStyle, int X, int Y, 
+	int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam)
+{
+	HWND hWnd = real_CreateWindowExA(
+		dwExStyle, 
+		lpClassName, 
+		lpWindowName, 
+		dwStyle | WS_CLIPCHILDREN, 
+		X, 
+		Y, 
+		nWidth, 
+		nHeight, 
+		hWndParent, 
+		hMenu, 
+		hInstance, 
+		lpParam);
+
+	if (_strcmpi(lpClassName, "SDlgDialog") == 0)
+	{
+		POINT pt = { 0, 0 };
+		real_ClientToScreen(hwnd_main, &pt);
+
+		SetWindowPos(hWnd, 0, pt.x + X, pt.y + Y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+	}
+
+	
+	return hWnd;
+}
 
 DWORD GetString(LPCSTR key, LPCSTR defaultValue, LPSTR outString, DWORD outSize)
 {
@@ -588,7 +656,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		}
 		case WM_ENABLE:
 		{
-			FixBnet((BOOL)wParam);
+			//FixBnet((BOOL)wParam);
 
 			break;
 		}
@@ -733,12 +801,22 @@ void ToScreen( void )
 	// blast it out to all top-level SDlgDialog windows... the realwtf
 	do
 	{	
-		GetWindowRect( hwnd, &rc );
+		fake_GetWindowRect( hwnd, &rc );
 		hdc = GetDCEx( hwnd, NULL, DCX_PARENTCLIP | DCX_CACHE );
-		GdiTransparentBlt( hdc, 0, 0, rc.right - rc.left, rc.bottom - rc.top,
-				hdc_offscreen, rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top,
-				clear_color 
-			);
+
+		GdiTransparentBlt( 
+			hdc, 
+			0, 
+			0, 
+			rc.right - rc.left, 
+			rc.bottom - rc.top,
+			hdc_offscreen, 
+			rc.left, 
+			rc.top, 
+			rc.right - rc.left, 
+			rc.bottom - rc.top,
+			clear_color);
+
 		ReleaseDC( hwnd, hdc );
 		hwnd = FindWindowEx( HWND_DESKTOP, hwnd, "SDlgDialog", NULL );
 	} while( hwnd != NULL );
@@ -815,7 +893,16 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 		AlwaysOnTop = Fullscreen || GetBool("AlwaysOnTop", FALSE);
 		ShowWindowFrame = GetBool("ShowWindowFrame", TRUE);
 
-		//Hook_Create((PROC)fake_GetCursorPos, (PROC *)&real_GetCursorPos);
+
+		Hook_PatchIAT(GetModuleHandle(NULL), "user32.dll", "CreateWindowExA", 0, (PROC)fake_CreateWindowExA);
+
+		Hook_PatchIAT(GetModuleHandle("storm.dll"), "user32.dll", "EnableWindow", 0, (PROC)fake_EnableWindow);
+		Hook_PatchIAT(GetModuleHandle("storm.dll"), "user32.dll", "CreateWindowExA", 0, (PROC)fake_CreateWindowExA);
+		Hook_PatchIAT(GetModuleHandle("storm.dll"), "user32.dll", "ScreenToClient", 0, (PROC)fake_ScreenToClient);
+		Hook_PatchIAT(GetModuleHandle("storm.dll"), "user32.dll", "ClientToScreen", 0, (PROC)fake_ClientToScreen);
+		Hook_PatchIAT(GetModuleHandle("storm.dll"), "user32.dll", "GetWindowRect", 0, (PROC)fake_GetWindowRect);
+
+		//Hook_Create((PROC)fake_EnableWindow, (PROC *)&real_EnableWindow);
 	}
 
 	if(ul_reason_for_call == DLL_PROCESS_DETACH )
@@ -846,7 +933,16 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 
 		WritePrivateProfileString("ddraw", "AlwaysOnTop", AlwaysOnTop ? "Yes" : "No", SettingsIniPath);
 
-		//Hook_Revert((PROC)fake_GetCursorPos, (PROC *)&real_GetCursorPos);
+
+		Hook_PatchIAT(GetModuleHandle(NULL), "user32.dll", "CreateWindowExA", 0, (PROC)CreateWindowExA);
+
+		Hook_PatchIAT(GetModuleHandle("storm.dll"), "user32.dll", "EnableWindow", 0, (PROC)EnableWindow);
+		Hook_PatchIAT(GetModuleHandle("storm.dll"), "user32.dll", "CreateWindowExA", 0, (PROC)CreateWindowExA);
+		Hook_PatchIAT(GetModuleHandle("storm.dll"), "user32.dll", "ScreenToClient", 0, (PROC)ScreenToClient);
+		Hook_PatchIAT(GetModuleHandle("storm.dll"), "user32.dll", "ClientToScreen", 0, (PROC)ClientToScreen);
+		Hook_PatchIAT(GetModuleHandle("storm.dll"), "user32.dll", "GetWindowRect", 0, (PROC)GetWindowRect);
+
+		//Hook_Revert((PROC)fake_EnableWindow, (PROC *)&real_EnableWindow);
 	}
 	return TRUE;
 }
