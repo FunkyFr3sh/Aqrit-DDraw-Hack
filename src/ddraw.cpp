@@ -85,6 +85,8 @@ BOOL WINAPI fake_EnableWindow(HWND hWnd, BOOL bEnable)
 
 			if (!Fullscreen && !WindowedFullscreen)
 			{
+				SetWindowLong(hwnd_main, GWL_STYLE, GetWindowLong(hwnd_main, GWL_STYLE) | WS_MAXIMIZEBOX | WS_THICKFRAME);
+
 				SetWindowPos(
 					hwnd_main,
 					AlwaysOnTop ? HWND_TOPMOST : HWND_NOTOPMOST,
@@ -129,6 +131,8 @@ HWND WINAPI fake_CreateWindowExA(
 			if (!Fullscreen && !WindowedFullscreen)
 			{
 				GetWindowRect(hwnd_main, &WindowRect);
+
+				SetWindowLong(hwnd_main, GWL_STYLE, GetWindowLong(hwnd_main, GWL_STYLE) & ~(WS_MAXIMIZEBOX | WS_THICKFRAME));
 
 				RECT rc = { 0, 0, OriginalWidth, OriginalHeight };
 				AdjustWindowRect(&rc, GetWindowLong(hwnd_main, GWL_STYLE), FALSE);
@@ -319,6 +323,8 @@ void ToggleFullscreen(BOOL fakeFullscreen)
 
 		if (FindWindowEx(HWND_DESKTOP, NULL, "SDlgDialog", NULL))
 		{
+			SetWindowLong(hwnd_main, GWL_STYLE, GetWindowLong(hwnd_main, GWL_STYLE) & ~(WS_MAXIMIZEBOX | WS_THICKFRAME));
+
 			RECT rc = { 0, 0, OriginalWidth, OriginalHeight };
 			AdjustWindowRect(&rc, GetWindowLong(hwnd_main, GWL_STYLE), FALSE);
 
