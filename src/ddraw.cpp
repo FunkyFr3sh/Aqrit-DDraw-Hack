@@ -87,8 +87,6 @@ BOOL WINAPI fake_GetWindowRect(HWND hWnd, LPRECT lpRect)
 
 BOOL WINAPI fake_EnableWindow(HWND hWnd, BOOL bEnable)
 {
-	return real_EnableWindow(hWnd, bEnable);
-
 	return FALSE;
 }
 
@@ -118,7 +116,6 @@ HWND WINAPI fake_CreateWindowExA(
 		SetWindowPos(hWnd, 0, pt.x + X, pt.y + Y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
 	}
 
-	
 	return hWnd;
 }
 
@@ -191,51 +188,26 @@ void MouseUnlock()
 	}
 }
 
-BOOL FixBnet(BOOL showWindow)
+void UpdateBnetPos(int oldX, int oldY, int newX, int newY)
 {
-	if (!Fullscreen && !IsIconic(hwnd_main))
+	HWND hWnd = FindWindowEx(HWND_DESKTOP, NULL, "SDlgDialog", NULL);
+
+	while (hWnd != NULL)
 	{
-		HWND sDlgDialog = FindWindowEx(HWND_DESKTOP, NULL, "SDlgDialog", NULL);
+		RECT rc;
+		real_GetWindowRect(hWnd, &rc);
 
-		if (sDlgDialog)
-		{
-			if (showWindow)
-			{
-				SetWindowPos(
-					hwnd_main, 
-					AlwaysOnTop ? HWND_TOPMOST : HWND_NOTOPMOST,
-					WindowRect.left, 
-					WindowRect.top, 
-					WindowRect.right - WindowRect.left,
-					WindowRect.bottom - WindowRect.top,
-					0);
-			}
-			else
-			{
-				GetWindowRect(hwnd_main, &WindowRect);
+		SetWindowPos(
+			hWnd,
+			0,
+			rc.left + (newX - oldX),
+			rc.top + (newY - oldY),
+			0,
+			0,
+			SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
 
-				RECT rc = { 0, 0, OriginalWidth, OriginalHeight };
-				AdjustWindowRect(&rc, GetWindowLong(hwnd_main, GWL_STYLE), FALSE);
-
-				int captsize = GetSystemMetrics(SM_CYCAPTION);
-
-				SetWindowPos(
-					hwnd_main, 
-					HWND_NOTOPMOST, 
-					0,
-					captsize > 0 ? -(captsize / 2) : 0,
-					rc.right - rc.left, 
-					rc.bottom - rc.top, 
-					0);
-
-				SetWindowPos(sDlgDialog, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
-			}
-
-			return TRUE;
-		}
+		hWnd = FindWindowEx(HWND_DESKTOP, hWnd, "SDlgDialog", NULL);
 	}
-
-	return FALSE;
 }
 
 void ToggleFullscreen(BOOL fakeFullscreen)
@@ -306,6 +278,8 @@ void ToggleFullscreen(BOOL fakeFullscreen)
 			AdjustWindowRect(&WindowRect, GetWindowLong(hwnd_main, GWL_STYLE), FALSE);
 		}
 
+		CurrentX = CurrentY = 0;
+
 		SetWindowPos(
 			hwnd_main, 
 			AlwaysOnTop ? HWND_TOPMOST : HWND_NOTOPMOST,
@@ -316,7 +290,7 @@ void ToggleFullscreen(BOOL fakeFullscreen)
 			SWP_SHOWWINDOW);
 
 
-		if (!FixBnet(FALSE) && WindowedFullscreen)
+		if (WindowedFullscreen)
 			MouseLock();
 	}
 	else if (ddraw)
@@ -331,6 +305,7 @@ void ToggleFullscreen(BOOL fakeFullscreen)
 		SetWindowLong(hwnd_main, GWL_STYLE, GetWindowLong(hwnd_main, GWL_STYLE) & ~(WS_CAPTION | WS_THICKFRAME | WS_MINIMIZE | WS_MAXIMIZE | WS_SYSMENU));
 		
 		SetWindowPos(hwnd_main, HWND_TOPMOST, 0, 0, OriginalWidth, OriginalHeight, SWP_SHOWWINDOW);
+		UpdateBnetPos(CurrentX, CurrentY, 0, 0);
 
 		ddraw->lpVtbl->SetCooperativeLevel(ddraw, hwnd_main, DDSCL_FULLSCREEN | DDSCL_EXCLUSIVE);
 		ddraw->lpVtbl->SetDisplayMode(ddraw, OriginalWidth, OriginalHeight, 32);
@@ -489,10 +464,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				int y = (int)(short)HIWORD(lParam);
 
 				if (x != -32000)
+				{
+					UpdateBnetPos(CurrentX, CurrentY, x, y);
 					CurrentX = x;
+				}
 
 				if (y != -32000)
+				{
 					CurrentY = y;
+				}
 			}
 
 			break;
@@ -652,12 +632,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				if (Fullscreen || WindowedFullscreen)
 					MouseLock();
 			}
-			break;
-		}
-		case WM_ENABLE:
-		{
-			//FixBnet((BOOL)wParam);
-
 			break;
 		}
 	}
