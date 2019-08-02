@@ -20,6 +20,7 @@ BOOL WindowedFullscreen = FALSE;
 BOOL MaintainAspectRatio = TRUE;
 BOOL AlwaysOnTop = FALSE;
 BOOL ShowWindowFrame = TRUE;
+BOOL FullscreenFailed = FALSE;
 BOOL MouseLocked;
 BOOL BnetActive;
 RECT WindowRect;
@@ -745,6 +746,7 @@ HRESULT GoFullscreen( void )
 		}
 	}
 
+	FullscreenFailed = TRUE;
 	ToggleFullscreen(TRUE);
 	MouseLock();
 	return DDERR_GENERIC;
@@ -952,10 +954,11 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 		WritePrivateProfileString("ddraw", "PosY", buf, SettingsIniPath);
 
 		WritePrivateProfileString("ddraw", "Windowed", !Fullscreen ? "Yes" : "No", SettingsIniPath);
-
 		WritePrivateProfileString("ddraw", "ShowWindowFrame", ShowWindowFrame ? "Yes" : "No", SettingsIniPath);
-
 		WritePrivateProfileString("ddraw", "AlwaysOnTop", AlwaysOnTop ? "Yes" : "No", SettingsIniPath);
+
+		if (FullscreenFailed)
+			WritePrivateProfileString("ddraw", "FullscreenFailed", "Yes", SettingsIniPath);
 
 
 		Hook_PatchIAT(GetModuleHandle(NULL), "user32.dll", "CreateWindowExA", 0, (PROC)CreateWindowExA);
