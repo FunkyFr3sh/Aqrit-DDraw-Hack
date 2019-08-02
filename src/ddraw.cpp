@@ -18,7 +18,7 @@ LRESULT(CALLBACK *OrgWndProc)(HWND, UINT, WPARAM, LPARAM);
 BOOL Fullscreen = TRUE;
 BOOL WindowedFullscreen = FALSE;
 BOOL MaintainAspectRatio = TRUE;
-BOOL AlwaysOnTop = TRUE;
+BOOL AlwaysOnTop = FALSE;
 BOOL ShowWindowFrame = TRUE;
 BOOL MouseLocked;
 RECT WindowRect;
@@ -864,7 +864,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 
 		Fullscreen = !GetBool("Windowed", FALSE);
 		MaintainAspectRatio = GetBool("MaintainAspectRatio", TRUE);
-		AlwaysOnTop = Fullscreen || GetBool("AlwaysOnTop", FALSE);
+		AlwaysOnTop = GetBool("AlwaysOnTop", FALSE);
 		ShowWindowFrame = GetBool("ShowWindowFrame", TRUE);
 
 
