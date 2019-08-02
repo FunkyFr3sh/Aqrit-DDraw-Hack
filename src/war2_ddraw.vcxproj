@@ -11,19 +11,6 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="detours\creatwth.cpp" />
-    <ClCompile Include="detours\detours.cpp" />
-    <ClCompile Include="detours\disasm.cpp" />
-    <ClCompile Include="detours\disolarm.cpp" />
-    <ClCompile Include="detours\disolarm64.cpp" />
-    <ClCompile Include="detours\disolia64.cpp" />
-    <ClCompile Include="detours\disolx64.cpp" />
-    <ClCompile Include="detours\disolx86.cpp" />
-    <ClCompile Include="detours\image.cpp" />
-    <ClCompile Include="detours\modules.cpp" />
-    <ClCompile Include="detours\uimports.cpp">
-      <ExcludedFromBuild>true</ExcludedFromBuild>
-    </ClCompile>
     <ClCompile Include="hook.cpp" />
     <ClCompile Include="ddraw.cpp" />
     <ClCompile Include="no_aa.cpp" />
@@ -82,7 +69,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
-      <AdditionalIncludeDirectories>inc;detours</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>inc</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -103,7 +90,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <AdditionalIncludeDirectories>inc;detours</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>inc</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
