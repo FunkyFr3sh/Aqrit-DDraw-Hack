@@ -21,6 +21,7 @@ BOOL MaintainAspectRatio = TRUE;
 BOOL AlwaysOnTop = FALSE;
 BOOL ShowWindowFrame = TRUE;
 BOOL MouseLocked;
+BOOL BnetActive;
 RECT WindowRect;
 HWND hwnd_main;
 void* pvBmpBits;
@@ -76,7 +77,29 @@ BOOL WINAPI fake_GetWindowRect(HWND hWnd, LPRECT lpRect)
 
 BOOL WINAPI fake_EnableWindow(HWND hWnd, BOOL bEnable)
 {
-	return FALSE;
+	if (hWnd == hwnd_main)
+	{
+		if (bEnable && BnetActive)
+		{
+			BnetActive = FALSE;
+
+			if (!Fullscreen && !WindowedFullscreen)
+			{
+				SetWindowPos(
+					hwnd_main,
+					AlwaysOnTop ? HWND_TOPMOST : HWND_NOTOPMOST,
+					0,
+					0,
+					WindowRect.right - WindowRect.left,
+					WindowRect.bottom - WindowRect.top,
+					SWP_NOMOVE);
+			}
+		}
+
+		return FALSE;
+	}
+
+	return EnableWindow(hWnd, bEnable);
 }
 
 HWND WINAPI fake_CreateWindowExA(
@@ -99,6 +122,28 @@ HWND WINAPI fake_CreateWindowExA(
 
 	if (_strcmpi(lpClassName, "SDlgDialog") == 0)
 	{
+		if (!BnetActive)
+		{
+			BnetActive = TRUE;
+
+			if (!Fullscreen && !WindowedFullscreen)
+			{
+				GetWindowRect(hwnd_main, &WindowRect);
+
+				RECT rc = { 0, 0, OriginalWidth, OriginalHeight };
+				AdjustWindowRect(&rc, GetWindowLong(hwnd_main, GWL_STYLE), FALSE);
+
+				SetWindowPos(
+					hwnd_main,
+					AlwaysOnTop ? HWND_TOPMOST : HWND_NOTOPMOST,
+					0,
+					0,
+					rc.right - rc.left,
+					rc.bottom - rc.top,
+					SWP_NOMOVE);
+			}
+		}
+
 		POINT pt = { 0, 0 };
 		ClientToScreen(hwnd_main, &pt);
 
@@ -269,20 +314,32 @@ void ToggleFullscreen(BOOL fakeFullscreen)
 
 		CurrentX = CurrentY = 0;
 
+		int width = WindowRect.right - WindowRect.left;
+		int height = WindowRect.bottom - WindowRect.top;
+
+		if (FindWindowEx(HWND_DESKTOP, NULL, "SDlgDialog", NULL))
+		{
+			RECT rc = { 0, 0, OriginalWidth, OriginalHeight };
+			AdjustWindowRect(&rc, GetWindowLong(hwnd_main, GWL_STYLE), FALSE);
+
+			width = rc.right - rc.left;
+			height = rc.bottom - rc.top;
+		}
+
 		SetWindowPos(
 			hwnd_main, 
 			AlwaysOnTop ? HWND_TOPMOST : HWND_NOTOPMOST,
 			WindowRect.left,
 			WindowRect.top,
-			(WindowRect.right - WindowRect.left),
-			(WindowRect.bottom - WindowRect.top),
+			width,
+			height,
 			SWP_SHOWWINDOW);
 
 
 		if (WindowedFullscreen)
 			MouseLock();
 	}
-	else if (ddraw)
+	else if (ddraw && !WindowedFullscreen)
 	{
 		Fullscreen = TRUE;
 
