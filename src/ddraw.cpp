@@ -543,6 +543,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			// show resize cursor on window borders
 			if ((HWND)wParam == hwnd_main)
 			{
+				static int count = 0;
+
 				WORD message = HIWORD(lParam);
 
 				if (message == WM_MOUSEMOVE)
@@ -570,18 +572,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 							if (GetCursorInfo(&ci) && ci.flags == 0)
 								while (ShowCursor(TRUE) < 0);
    
+							count = 0;
+
 							return DefWindowProc(hWnd, uMsg, wParam, lParam);
 						}
 						default:
 						{
-							
 							CURSORINFO ci;
 							ci.cbSize = sizeof(CURSORINFO);
 
 							if (GetCursorInfo(&ci) && ci.flags != 0)
 							{
-								HWND sDlgDialog = FindWindowEx(HWND_DESKTOP, NULL, "SDlgDialog", NULL);
-								if (!sDlgDialog)
+								if (!BnetActive && count++ > 50)
 								{
 									while (ShowCursor(FALSE) > 0);
 								}
@@ -806,6 +808,8 @@ void ToScreen( void )
 		// no screen flash when ss is taken?
 		hdc = GetDC( hwnd_main );
 		//BitBlt( hdc, 0, 0, WindowSize.right, WindowSize.bottom, hdc_offscreen, 0, 0, SRCCOPY );
+
+		//SetStretchBltMode(hdc, HALFTONE);
 
 		StretchBlt(
 			hdc,
