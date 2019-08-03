@@ -86,7 +86,7 @@ BOOL WINAPI fake_DestroyWindow(HWND hWnd)
 
 		if (!Fullscreen && !WindowedFullscreen)
 		{
-			SetWindowLong(hwnd_main, GWL_STYLE, GetWindowLong(hwnd_main, GWL_STYLE) | WS_MAXIMIZEBOX | WS_THICKFRAME);
+			SetWindowLong(hwnd_main, GWL_STYLE, GetWindowLong(hwnd_main, GWL_STYLE) | WS_THICKFRAME);
 
 			SetWindowPos(
 				hwnd_main,
@@ -140,7 +140,7 @@ HWND WINAPI fake_CreateWindowExA(
 			{
 				GetWindowRect(hwnd_main, &WindowRect);
 
-				SetWindowLong(hwnd_main, GWL_STYLE, GetWindowLong(hwnd_main, GWL_STYLE) & ~(WS_MAXIMIZEBOX | WS_THICKFRAME));
+				SetWindowLong(hwnd_main, GWL_STYLE, GetWindowLong(hwnd_main, GWL_STYLE) & ~(WS_THICKFRAME));
 
 				RECT rc = { 0, 0, OriginalWidth, OriginalHeight };
 				AdjustWindowRect(&rc, GetWindowLong(hwnd_main, GWL_STYLE), FALSE);
@@ -272,7 +272,7 @@ void ToggleFullscreen(BOOL fakeFullscreen)
 
 		if (ShowWindowFrame && !fakeFullscreen)
 		{
-			SetWindowLong(hwnd_main, GWL_STYLE, GetWindowLong(hwnd_main, GWL_STYLE) | WS_OVERLAPPEDWINDOW);
+			SetWindowLong(hwnd_main, GWL_STYLE, (GetWindowLong(hwnd_main, GWL_STYLE) | WS_OVERLAPPEDWINDOW) & ~(WS_MAXIMIZEBOX));
 		}
 		else
 		{
@@ -331,7 +331,7 @@ void ToggleFullscreen(BOOL fakeFullscreen)
 
 		if (FindWindowEx(HWND_DESKTOP, NULL, "SDlgDialog", NULL))
 		{
-			SetWindowLong(hwnd_main, GWL_STYLE, GetWindowLong(hwnd_main, GWL_STYLE) & ~(WS_MAXIMIZEBOX | WS_THICKFRAME));
+			SetWindowLong(hwnd_main, GWL_STYLE, GetWindowLong(hwnd_main, GWL_STYLE) & ~(WS_THICKFRAME));
 
 			RECT rc = { 0, 0, OriginalWidth, OriginalHeight };
 			AdjustWindowRect(&rc, GetWindowLong(hwnd_main, GWL_STYLE), FALSE);
