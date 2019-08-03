@@ -76,29 +76,36 @@ BOOL WINAPI fake_GetWindowRect(HWND hWnd, LPRECT lpRect)
 	return GetWindowRect(hWnd, lpRect);
 }
 
+BOOL WINAPI fake_DestroyWindow(HWND hWnd)
+{
+	BOOL result = DestroyWindow(hWnd);
+
+	if (hWnd != hwnd_main && BnetActive && !FindWindowEx(HWND_DESKTOP, NULL, "SDlgDialog", NULL))
+	{
+		BnetActive = FALSE;
+
+		if (!Fullscreen && !WindowedFullscreen)
+		{
+			SetWindowLong(hwnd_main, GWL_STYLE, GetWindowLong(hwnd_main, GWL_STYLE) | WS_MAXIMIZEBOX | WS_THICKFRAME);
+
+			SetWindowPos(
+				hwnd_main,
+				AlwaysOnTop ? HWND_TOPMOST : HWND_NOTOPMOST,
+				0,
+				0,
+				WindowRect.right - WindowRect.left,
+				WindowRect.bottom - WindowRect.top,
+				SWP_NOMOVE);
+		}
+	}
+
+	return result;
+}
+
 BOOL WINAPI fake_EnableWindow(HWND hWnd, BOOL bEnable)
 {
 	if (hWnd == hwnd_main)
 	{
-		if (bEnable && BnetActive)
-		{
-			BnetActive = FALSE;
-
-			if (!Fullscreen && !WindowedFullscreen)
-			{
-				SetWindowLong(hwnd_main, GWL_STYLE, GetWindowLong(hwnd_main, GWL_STYLE) | WS_MAXIMIZEBOX | WS_THICKFRAME);
-
-				SetWindowPos(
-					hwnd_main,
-					AlwaysOnTop ? HWND_TOPMOST : HWND_NOTOPMOST,
-					0,
-					0,
-					WindowRect.right - WindowRect.left,
-					WindowRect.bottom - WindowRect.top,
-					SWP_NOMOVE);
-			}
-		}
-
 		return FALSE;
 	}
 
@@ -929,6 +936,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 		Hook_PatchIAT(GetModuleHandle("storm.dll"), "user32.dll", "ScreenToClient", 0, (PROC)fake_ScreenToClient);
 		Hook_PatchIAT(GetModuleHandle("storm.dll"), "user32.dll", "ClientToScreen", 0, (PROC)fake_ClientToScreen);
 		Hook_PatchIAT(GetModuleHandle("storm.dll"), "user32.dll", "GetWindowRect", 0, (PROC)fake_GetWindowRect);
+		Hook_PatchIAT(GetModuleHandle("storm.dll"), "user32.dll", "DestroyWindow", 0, (PROC)fake_DestroyWindow);
 	}
 
 	if(ul_reason_for_call == DLL_PROCESS_DETACH )
@@ -968,6 +976,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 		Hook_PatchIAT(GetModuleHandle("storm.dll"), "user32.dll", "ScreenToClient", 0, (PROC)ScreenToClient);
 		Hook_PatchIAT(GetModuleHandle("storm.dll"), "user32.dll", "ClientToScreen", 0, (PROC)ClientToScreen);
 		Hook_PatchIAT(GetModuleHandle("storm.dll"), "user32.dll", "GetWindowRect", 0, (PROC)GetWindowRect);
+		Hook_PatchIAT(GetModuleHandle("storm.dll"), "user32.dll", "DestroyWindow", 0, (PROC)DestroyWindow);
 	}
 	return TRUE;
 }
