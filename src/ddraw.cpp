@@ -76,6 +76,16 @@ BOOL WINAPI fake_GetWindowRect(HWND hWnd, LPRECT lpRect)
 	return GetWindowRect(hWnd, lpRect);
 }
 
+BOOL WINAPI fake_EnableWindow(HWND hWnd, BOOL bEnable)
+{
+	if (hWnd == hwnd_main)
+	{
+		return FALSE;
+	}
+
+	return EnableWindow(hWnd, bEnable);
+}
+
 BOOL WINAPI fake_DestroyWindow(HWND hWnd)
 {
 	BOOL result = DestroyWindow(hWnd);
@@ -100,16 +110,6 @@ BOOL WINAPI fake_DestroyWindow(HWND hWnd)
 	}
 
 	return result;
-}
-
-BOOL WINAPI fake_EnableWindow(HWND hWnd, BOOL bEnable)
-{
-	if (hWnd == hwnd_main)
-	{
-		return FALSE;
-	}
-
-	return EnableWindow(hWnd, bEnable);
 }
 
 HWND WINAPI fake_CreateWindowExA(
@@ -600,7 +600,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		case WM_NCLBUTTONDBLCLK:
 		{
 			RECT rc;
-			if (SystemParametersInfo(SPI_GETWORKAREA, 0, &rc, 0))
+			if (!BnetActive && SystemParametersInfo(SPI_GETWORKAREA, 0, &rc, 0))
 			{
 				SetWindowPos(
 					hwnd_main,
