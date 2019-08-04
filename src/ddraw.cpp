@@ -539,16 +539,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		}
 		case WM_SETCURSOR:
 		{
-			/*
 			// show resize cursor on window borders
 			if ((HWND)wParam == hwnd_main)
 			{
-				static int count = 0;
-
 				WORD message = HIWORD(lParam);
 
 				if (message == WM_MOUSEMOVE)
 				{
+					static BOOL visible = FALSE;
 					WORD htcode = LOWORD(lParam);
 
 					switch (htcode)
@@ -566,27 +564,22 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 						case HTTOPLEFT:
 						case HTTOPRIGHT:
 						{
-							CURSORINFO ci;
-							ci.cbSize = sizeof(CURSORINFO);
+							if (!visible)
+							{
+								visible = TRUE;
+								ShowCursor(TRUE);
 
-							if (GetCursorInfo(&ci) && ci.flags == 0)
-								while (ShowCursor(TRUE) < 0);
-   
-							count = 0;
+								return DefWindowProc(hWnd, uMsg, wParam, lParam);
+							}
 
-							return DefWindowProc(hWnd, uMsg, wParam, lParam);
+							break;
 						}
 						default:
 						{
-							CURSORINFO ci;
-							ci.cbSize = sizeof(CURSORINFO);
-
-							if (GetCursorInfo(&ci) && ci.flags != 0)
+							if (visible)
 							{
-								if (!BnetActive && count++ > 50)
-								{
-									while (ShowCursor(FALSE) > 0);
-								}
+								visible = FALSE;
+								ShowCursor(FALSE);
 							}
 									
 							break;
@@ -594,7 +587,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 					}
 				}
 			}
-			*/
+
 			break;
 		}
 		case WM_NCLBUTTONDBLCLK:
