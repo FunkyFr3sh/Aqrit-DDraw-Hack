@@ -568,11 +568,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 							{
 								visible = TRUE;
 								ShowCursor(TRUE);
-
-								return DefWindowProc(hWnd, uMsg, wParam, lParam);
 							}
 
-							break;
+							return DefWindowProc(hWnd, uMsg, wParam, lParam);
 						}
 						default:
 						{
