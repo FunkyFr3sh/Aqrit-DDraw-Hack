@@ -132,6 +132,11 @@ HWND WINAPI fake_CreateWindowExA(
 
 	if (_strcmpi(lpClassName, "SDlgDialog") == 0)
 	{
+		POINT pt = { 0, 0 };
+		ClientToScreen(hwnd_main, &pt);
+
+		SetWindowPos(hWnd, 0, pt.x + X, pt.y + Y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+
 		if (!BnetActive)
 		{
 			BnetActive = TRUE;
@@ -155,11 +160,6 @@ HWND WINAPI fake_CreateWindowExA(
 					SWP_NOMOVE);
 			}
 		}
-
-		POINT pt = { 0, 0 };
-		ClientToScreen(hwnd_main, &pt);
-
-		SetWindowPos(hWnd, 0, pt.x + X, pt.y + Y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
 	}
 
 	return hWnd;
@@ -236,6 +236,15 @@ void MouseUnlock()
 
 void UpdateBnetPos(int oldX, int oldY, int newX, int newY)
 {
+	POINT pt = { 0, 0 };
+	ClientToScreen(hwnd_main, &pt);
+
+	RECT mainrc;
+	SetRect(&mainrc, pt.x, pt.y, pt.x + OriginalWidth, pt.y + OriginalHeight);
+
+	int adjY = 0;
+	int adjX = 0;
+
 	HWND hWnd = FindWindowEx(HWND_DESKTOP, NULL, "SDlgDialog", NULL);
 
 	while (hWnd != NULL)
@@ -243,16 +252,52 @@ void UpdateBnetPos(int oldX, int oldY, int newX, int newY)
 		RECT rc;
 		GetWindowRect(hWnd, &rc);
 
+		OffsetRect(&rc, newX - oldX, newY - oldY);
+
 		SetWindowPos(
 			hWnd,
 			0,
-			rc.left + (newX - oldX),
-			rc.top + (newY - oldY),
+			rc.left,
+			rc.top,
 			0,
 			0,
 			SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
 
+		if (rc.bottom > mainrc.bottom)
+			adjY = mainrc.bottom - rc.bottom;
+		else if (rc.top < mainrc.top)
+			adjY = mainrc.top - rc.top;
+
+		if (rc.right > mainrc.right)
+			adjX = mainrc.right - rc.right;
+		else if (rc.left < mainrc.left)
+			adjX = mainrc.left - rc.left;
+
 		hWnd = FindWindowEx(HWND_DESKTOP, hWnd, "SDlgDialog", NULL);
+	}
+
+	if (adjX || adjY)
+	{
+		HWND hWnd = FindWindowEx(HWND_DESKTOP, NULL, "SDlgDialog", NULL);
+
+		while (hWnd != NULL)
+		{
+			RECT rc;
+			GetWindowRect(hWnd, &rc);
+
+			OffsetRect(&rc, adjX, adjY);
+
+			SetWindowPos(
+				hWnd,
+				0,
+				rc.left,
+				rc.top,
+				0,
+				0,
+				SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+
+			hWnd = FindWindowEx(HWND_DESKTOP, hWnd, "SDlgDialog", NULL);
+		}
 	}
 }
 
