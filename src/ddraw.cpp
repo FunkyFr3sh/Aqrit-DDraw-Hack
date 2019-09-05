@@ -37,6 +37,7 @@ LONG RenderX;
 LONG RenderY;
 HBITMAP hOldBitmap; // for cleanup
 char SettingsIniPath[] = ".\\war2_ddraw.ini";
+DEVMODE GameDevMode;
 
 WNDPROC ButtonWndProc_original;
 
@@ -46,10 +47,6 @@ extern const DWORD ddp_vtbl[];
 const DWORD* const IDDraw = dd_vtbl;
 const DWORD* const IDDSurf = dds_vtbl;
 const DWORD* const IDDPal = ddp_vtbl;
-
-// real ddraw for fullscreen
-IDirectDraw* ddraw;
-IDirectDrawSurface* dds_primary = NULL;
 
 
 BOOL WINAPI fake_ClientToScreen(HWND hWnd, LPPOINT lpPoint)
@@ -309,11 +306,7 @@ void ToggleFullscreen(BOOL fakeFullscreen)
 
 		MouseUnlock();
 
-		if (ddraw)
-		{
-			ddraw->lpVtbl->SetCooperativeLevel(ddraw, hwnd_main, DDSCL_NORMAL);
-			ddraw->lpVtbl->RestoreDisplayMode(ddraw);
-		}
+		ChangeDisplaySettings(NULL, CDS_FULLSCREEN);
 
 		if (ShowWindowFrame && !fakeFullscreen)
 		{
@@ -398,7 +391,7 @@ void ToggleFullscreen(BOOL fakeFullscreen)
 		if (WindowedFullscreen)
 			MouseLock();
 	}
-	else if (ddraw && !WindowedFullscreen)
+	else if (!FullscreenFailed && !WindowedFullscreen)
 	{
 		Fullscreen = TRUE;
 
@@ -412,8 +405,7 @@ void ToggleFullscreen(BOOL fakeFullscreen)
 		SetWindowPos(hwnd_main, HWND_TOPMOST, 0, 0, OriginalWidth, OriginalHeight, SWP_SHOWWINDOW);
 		UpdateBnetPos(CurrentX, CurrentY, 0, 0);
 
-		ddraw->lpVtbl->SetCooperativeLevel(ddraw, hwnd_main, DDSCL_FULLSCREEN | DDSCL_EXCLUSIVE);
-		ddraw->lpVtbl->SetDisplayMode(ddraw, OriginalWidth, OriginalHeight, 32);
+		ChangeDisplaySettings(&GameDevMode, CDS_FULLSCREEN);
 
 		MouseLock();
 	}
@@ -701,35 +693,39 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				ToggleFullscreen(FALSE);
 				return 0;
 			}
-			if (wParam == VK_BACK)
-			{
-				if (!Fullscreen)
-				{
-					ShowWindow(hwnd_main, SW_MINIMIZE);
-					return 0;
-				}
-			}
 			break;
 		}
 		case WM_ACTIVATEAPP:
 		{
-			// keep drawing in windowed mode
-			if (!Fullscreen)
-				return 0;
-
-			break;
-		}
-		case WM_ACTIVATE:
-		{
-			if (wParam == WA_INACTIVE)
+			if (Fullscreen)
 			{
-				MouseUnlock();
-			}
-			else if (wParam == WA_ACTIVE)
-			{
-				if (Fullscreen || WindowedFullscreen)
+				if (wParam)
+				{
+					ChangeDisplaySettings(&GameDevMode, CDS_FULLSCREEN);
 					MouseLock();
+				}
+				else
+				{
+					MouseUnlock();
+					ShowWindow(hwnd_main, SW_MINIMIZE);
+					ChangeDisplaySettings(NULL, CDS_FULLSCREEN);
+				}
 			}
+			else
+			{
+				if (wParam)
+				{
+					if (WindowedFullscreen)
+						MouseLock();
+				}
+				else
+				{
+					MouseUnlock();
+				}
+
+				return 0;
+			}
+
 			break;
 		}
 	}
@@ -738,73 +734,29 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 HRESULT GoFullscreen( void )
 {
-	HMODULE ddraw_dll; 
-	DDSURFACEDESC ddsd;
-	typedef HRESULT (__stdcall* DIRECTDRAWCREATE)( GUID*, IDirectDraw**, IUnknown* ); 
+	GameDevMode.dmSize = sizeof(DEVMODE);
+	GameDevMode.dmFields = DM_PELSWIDTH | DM_PELSHEIGHT;
+	GameDevMode.dmPelsWidth = OriginalWidth;
+	GameDevMode.dmPelsHeight = OriginalHeight;
 
-	// load ddraw.dll from system32 dir
-	char szPath[ MAX_PATH ];
-	if( GetSystemDirectory( szPath, MAX_PATH - 10 ))
+	if (Fullscreen)
 	{
-		strcat_s( szPath, "\\ddraw.dll" );
-		ddraw_dll = LoadLibrary( szPath );
-
-		if( ddraw_dll != NULL)
+		if (ChangeDisplaySettings(&GameDevMode, CDS_FULLSCREEN) != DISP_CHANGE_SUCCESSFUL)
 		{
-			DIRECTDRAWCREATE pfnDirectDrawCreate = (DIRECTDRAWCREATE) GetProcAddress( ddraw_dll, "DirectDrawCreate" );
-			if( pfnDirectDrawCreate != NULL )
-			{
-				if( SUCCEEDED( pfnDirectDrawCreate( (GUID*)0, &ddraw, NULL ) ) )
-				{ 
-					if (Fullscreen)
-					{
-						if (SUCCEEDED(ddraw->lpVtbl->SetCooperativeLevel(ddraw, hwnd_main, DDSCL_FULLSCREEN | DDSCL_EXCLUSIVE)))
-						{
-							if (SUCCEEDED(ddraw->lpVtbl->SetDisplayMode(ddraw, OriginalWidth, OriginalHeight, 32)))
-							{
-								RtlSecureZeroMemory(&ddsd, sizeof(ddsd));
-								ddsd.dwSize = sizeof(ddsd);
-								ddsd.dwFlags = DDSD_CAPS;
-								ddsd.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE;
-								if (SUCCEEDED(ddraw->lpVtbl->CreateSurface(ddraw, &ddsd, &dds_primary, NULL)))
-								{
-									MouseLock();
-									return DD_OK;
-								}
-								ddraw->lpVtbl->RestoreDisplayMode(ddraw);
-							}
-							ddraw->lpVtbl->SetCooperativeLevel(ddraw, hwnd_main, DDSCL_NORMAL);
-						}
-						ddraw->lpVtbl->Release(ddraw);
-						ddraw = NULL;
-					}
-					else
-					{
-						Fullscreen = TRUE;
-						ToggleFullscreen(FALSE);
-						return DD_OK;
-					}
-						
-				}
-			}
-			FreeLibrary( ddraw_dll );
+			FullscreenFailed = TRUE;
+			ToggleFullscreen(TRUE);
 		}
+
+		MouseLock();
+	}
+	else
+	{
+		Fullscreen = TRUE;
+		ToggleFullscreen(FALSE);
 	}
 
-	FullscreenFailed = TRUE;
-	ToggleFullscreen(TRUE);
-	MouseLock();
-	return DDERR_GENERIC;
+	return DD_OK;
 }
-
-BOOL CheckFullscreen()
-{
-	if( dds_primary == NULL ) return FALSE;
-	if( SUCCEEDED( dds_primary->lpVtbl->IsLost( dds_primary ) ) ) return TRUE;
-	if( SUCCEEDED( dds_primary->lpVtbl->Restore( dds_primary ) ) ) return TRUE;
-	return FALSE;
-}
-
 
 // HACK // 
 // as a work-around for a unkown problem...
@@ -826,8 +778,6 @@ void ToScreen( void )
 	int i;
 	RGBQUAD quad;
 	COLORREF clear_color;
-
-	CheckFullscreen();
 
 	hwnd = FindWindowEx( HWND_DESKTOP, NULL, "SDlgDialog", NULL ); // detect mixed gdi/ddraw screen
 	if( hwnd == NULL ) // in-game (ddraw only)
