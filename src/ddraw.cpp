@@ -306,7 +306,8 @@ void ToggleFullscreen(BOOL fakeFullscreen)
 
 		MouseUnlock();
 
-		ChangeDisplaySettings(NULL, CDS_FULLSCREEN);
+		if (!fakeFullscreen)
+			ChangeDisplaySettings(NULL, BnetActive ? CDS_FULLSCREEN : 0);
 
 		if (ShowWindowFrame && !fakeFullscreen)
 		{
@@ -709,7 +710,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				{
 					MouseUnlock();
 					ShowWindow(hwnd_main, SW_MINIMIZE);
-					ChangeDisplaySettings(NULL, CDS_FULLSCREEN);
+					ChangeDisplaySettings(NULL, BnetActive ? CDS_FULLSCREEN : 0);
 				}
 			}
 			else
