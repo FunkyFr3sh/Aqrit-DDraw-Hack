@@ -937,9 +937,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 		wc.lpfnWndProc = ButtonWndProc;
 		RegisterClass( &wc );
 
-		// Disable AntiAliased Fonts
-		HookFonts();
-
 		if (GetFileAttributes(SettingsIniPath) == INVALID_FILE_ATTRIBUTES)
 		{
 			FILE *fh = fopen(SettingsIniPath, "w");
@@ -951,6 +948,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 					"MaintainAspectRatio=Yes\n"
 					"AlwaysOnTop=No\n"
 					"ShowWindowFrame=Yes\n"
+					"AntiAliasedFonts=No\n"
 					"Width=640\n"
 					"Height=480\n"
 					"PosX=-32000\n"
@@ -967,6 +965,9 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 		MaintainAspectRatio = GetBool("MaintainAspectRatio", TRUE);
 		AlwaysOnTop = GetBool("AlwaysOnTop", FALSE);
 		ShowWindowFrame = GetBool("ShowWindowFrame", TRUE);
+
+		if (!GetBool("AntiAliasedFonts", FALSE))
+			HookFonts();
 
 
 		Hook_PatchIAT(GetModuleHandle(NULL), "user32.dll", "CreateWindowExA", 0, (PROC)fake_CreateWindowExA);
