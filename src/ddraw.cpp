@@ -375,7 +375,7 @@ void ToggleFullscreen(BOOL fakeFullscreen)
 		int width = WindowRect.right - WindowRect.left;
 		int height = WindowRect.bottom - WindowRect.top;
 
-		if (FindWindowEx(HWND_DESKTOP, NULL, "SDlgDialog", NULL))
+		if (BnetActive)
 		{
 			SetWindowLong(hwnd_main, GWL_STYLE, GetWindowLong(hwnd_main, GWL_STYLE) & ~(WS_THICKFRAME));
 
@@ -405,7 +405,7 @@ void ToggleFullscreen(BOOL fakeFullscreen)
 
 		MouseUnlock();
 
-		if (!FindWindowEx(HWND_DESKTOP, NULL, "SDlgDialog", NULL))
+		if (!BnetActive)
 			GetWindowRect(hwnd_main, &WindowRect);
 
 		SetWindowLong(hwnd_main, GWL_STYLE, GetWindowLong(hwnd_main, GWL_STYLE) & ~(WS_CAPTION | WS_THICKFRAME | WS_MINIMIZE | WS_MAXIMIZE | WS_SYSMENU));
@@ -674,7 +674,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		}
 		case WM_RBUTTONDOWN:
 		{
-			if (!MouseLocked && !FindWindowEx(HWND_DESKTOP, NULL, "SDlgDialog", NULL))
+			if (!MouseLocked && !BnetActive)
 				MouseLock();
 
 			break;
@@ -833,7 +833,7 @@ void ToScreen( void )
 
 	CheckFullscreen();
 
-	hwnd = FindWindowEx( HWND_DESKTOP, NULL, "SDlgDialog", NULL ); // detect mixed gdi/ddraw screen
+	hwnd = BnetActive ? FindWindowEx(HWND_DESKTOP, NULL, "SDlgDialog", NULL) : NULL; // detect mixed gdi/ddraw screen
 	if( hwnd == NULL ) // in-game (ddraw only)
 	{  
 		static DWORD lastTick;
