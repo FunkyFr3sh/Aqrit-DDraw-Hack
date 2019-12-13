@@ -655,6 +655,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			RECT rc;
 			if (!BnetActive && SystemParametersInfo(SPI_GETWORKAREA, 0, &rc, 0))
 			{
+				/*
 				SetWindowPos(
 					hwnd_main,
 					AlwaysOnTop ? HWND_TOPMOST : HWND_NOTOPMOST,
@@ -663,6 +664,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 					(rc.right - rc.left),
 					(rc.bottom - rc.top),
 					SWP_SHOWWINDOW);
+					*/
 			}
 
 			return 0;
