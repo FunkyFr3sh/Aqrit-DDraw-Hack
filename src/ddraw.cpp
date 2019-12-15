@@ -202,30 +202,24 @@ BOOL UnadjustWindowRectEx(LPRECT prc, DWORD dwStyle, BOOL fMenu, DWORD dwExStyle
 
 void MouseLock()
 {
-	if (!MouseLocked)
-	{
-		RECT rc = { 0, 0, OriginalWidth, OriginalHeight };
+	RECT rc = { 0, 0, OriginalWidth, OriginalHeight };
 
-		POINT pt = { rc.left, rc.top };
-		POINT pt2 = { rc.right, rc.bottom };
-		ClientToScreen(hwnd_main, &pt);
-		ClientToScreen(hwnd_main, &pt2);
+	POINT pt = { rc.left, rc.top };
+	POINT pt2 = { rc.right, rc.bottom };
+	ClientToScreen(hwnd_main, &pt);
+	ClientToScreen(hwnd_main, &pt2);
 
-		SetRect(&rc, pt.x, pt.y, pt2.x, pt2.y);
-		ClipCursor(&rc);
+	SetRect(&rc, pt.x, pt.y, pt2.x, pt2.y);
+	ClipCursor(&rc);
 
-		MouseLocked = TRUE;
-	}
+	MouseLocked = TRUE;
 }
 
 void MouseUnlock()
 {
-	if (MouseLocked)
-	{
-		MouseLocked = FALSE;
+	MouseLocked = FALSE;
 
-		ClipCursor(NULL);
-	}
+	ClipCursor(NULL);
 }
 
 void UpdateBnetPos(int oldX, int oldY, int newX, int newY)
