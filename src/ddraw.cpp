@@ -408,7 +408,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	{
 		char buf[256];
 
-		sprintf(buf, "xDBG hWnd:%08X, uMsg:%08X, wParam:%08X, lParam:%08X", hWnd, uMsg, wParam, lParam);
+		sprintf(buf, "xDBG hWnd:%08X, uMsg:%s, wParam:%08X, lParam:%08X", hWnd, GET_MSG(uMsg), wParam, lParam);
 
 		OutputDebugStringA(buf);
 	}
@@ -719,6 +719,24 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 					ToggleFullscreen(FALSE);
 					return 0;
 				}
+			}
+			break;
+		}
+		case WM_SYSKEYUP:
+		{
+			BOOL contextCode = (lParam & (1 << 29)) != 0;
+			BOOL keyState = (lParam & (1 << 30)) != 0;
+
+			if (wParam == VK_TAB || wParam == VK_ESCAPE)
+			{
+				DWORD version = GetVersion();
+				DWORD major = (DWORD)(LOBYTE(LOWORD(version)));
+				DWORD minor = (DWORD)(HIBYTE(LOWORD(version)));
+
+				BOOL win7OrBelow = major <= 6 && minor <= 1;
+
+				if (win7OrBelow && Fullscreen && contextCode && !keyState)
+					ShowWindow(hwnd_main, SW_MINIMIZE);
 			}
 			break;
 		}
