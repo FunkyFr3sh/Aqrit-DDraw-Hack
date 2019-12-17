@@ -981,6 +981,16 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 		Hook_PatchIAT(GetModuleHandle("storm.dll"), "user32.dll", "ClientToScreen", 0, (PROC)fake_ClientToScreen);
 		Hook_PatchIAT(GetModuleHandle("storm.dll"), "user32.dll", "GetWindowRect", 0, (PROC)fake_GetWindowRect);
 		Hook_PatchIAT(GetModuleHandle("storm.dll"), "user32.dll", "DestroyWindow", 0, (PROC)fake_DestroyWindow);
+
+		HMODULE hDwmapi = LoadLibrary("Dwmapi.dll");
+		if (hDwmapi)
+		{
+			typedef HRESULT(__stdcall* DWNENABLEPROC)(UINT uCompositionAction);
+			DWNENABLEPROC dwm = (DWNENABLEPROC)GetProcAddress(hDwmapi, "DwmEnableComposition");
+
+			if (dwm)
+				dwm(0);
+		}
 	}
 
 	if(ul_reason_for_call == DLL_PROCESS_DETACH )
