@@ -94,6 +94,8 @@ BOOL WINAPI fake_DestroyWindow(HWND hWnd)
 
 		if (!Fullscreen && !WindowedFullscreen)
 		{
+			SetWindowLong(hwnd_main, GWL_STYLE, GetWindowLong(hwnd_main, GWL_STYLE) | WS_THICKFRAME);
+
 			SetWindowPos(
 				hwnd_main,
 				AlwaysOnTop ? HWND_TOPMOST : HWND_NOTOPMOST,
@@ -140,6 +142,8 @@ HWND WINAPI fake_CreateWindowExA(
 			if (!Fullscreen && !WindowedFullscreen)
 			{
 				GetWindowRect(hwnd_main, &WindowRect);
+
+				SetWindowLong(hwnd_main, GWL_STYLE, GetWindowLong(hwnd_main, GWL_STYLE) & ~(WS_THICKFRAME));
 
 				RECT rc = { 0, 0, OriginalWidth, OriginalHeight };
 				AdjustWindowRect(&rc, GetWindowLong(hwnd_main, GWL_STYLE), FALSE);
@@ -367,6 +371,8 @@ void ToggleFullscreen(BOOL fakeFullscreen)
 
 		if (BnetActive)
 		{
+			SetWindowLong(hwnd_main, GWL_STYLE, GetWindowLong(hwnd_main, GWL_STYLE) & ~(WS_THICKFRAME));
+
 			RECT rc = { 0, 0, OriginalWidth, OriginalHeight };
 			AdjustWindowRect(&rc, GetWindowLong(hwnd_main, GWL_STYLE), FALSE);
 
@@ -421,28 +427,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	*/
 	switch (uMsg)
 	{
-		case WM_NCHITTEST:
-		{
-			LRESULT result = DefWindowProc(hWnd, uMsg, wParam, lParam);
-
-			if (BnetActive)
-			{
-				switch (result)
-				{
-					case HTBOTTOM:
-					case HTBOTTOMLEFT:
-					case HTBOTTOMRIGHT:
-					case HTLEFT:
-					case HTRIGHT:
-					case HTTOP:
-					case HTTOPLEFT:
-					case HTTOPRIGHT:
-						return HTBORDER;
-				}
-			}
-
-			return result;
-		}
 		case WM_SIZING:
 		{
 			RECT *windowrc = (RECT *)lParam;
