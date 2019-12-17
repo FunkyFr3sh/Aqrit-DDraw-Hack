@@ -701,7 +701,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			{
 				if (wParam)
 				{
-					ShowWindow(hwnd_main, SW_RESTORE);
 					ChangeDisplaySettings(&GameDevMode, CDS_FULLSCREEN);
 					MouseLock();
 				}
