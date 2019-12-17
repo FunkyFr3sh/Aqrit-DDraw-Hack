@@ -119,7 +119,7 @@ HWND WINAPI fake_CreateWindowExA(
 		dwExStyle, 
 		lpClassName, 
 		lpWindowName, 
-		dwStyle | WS_CLIPCHILDREN, 
+		dwStyle, 
 		X, 
 		Y, 
 		nWidth, 
