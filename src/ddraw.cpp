@@ -21,7 +21,6 @@ BOOL MaintainAspectRatio = TRUE;
 BOOL AlwaysOnTop = FALSE;
 BOOL ShowWindowFrame = TRUE;
 BOOL FullscreenFailed = FALSE;
-BOOL IgnoreAltEnter = FALSE;
 BOOL MouseLocked;
 BOOL BnetActive;
 RECT WindowRect;
@@ -702,11 +701,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		{
 			if (wParam == VK_RETURN)
 			{
-				if (!IgnoreAltEnter)
-				{ 
-					ToggleFullscreen(FALSE);
-					return 0;
-				}
+				ToggleFullscreen(FALSE);
+				return 0;
 			}
 			break;
 		}
@@ -919,7 +915,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 					"MaintainAspectRatio=Yes\n"
 					"AlwaysOnTop=No\n"
 					"ShowWindowFrame=Yes\n"
-					"IgnoreAltEnter=No\n"
 					"AntiAliasedFonts=No\n"
 					"Width=640\n"
 					"Height=480\n"
@@ -937,7 +932,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 		MaintainAspectRatio = GetBool("MaintainAspectRatio", TRUE);
 		AlwaysOnTop = GetBool("AlwaysOnTop", FALSE);
 		ShowWindowFrame = GetBool("ShowWindowFrame", TRUE);
-		IgnoreAltEnter = GetBool("IgnoreAltEnter", FALSE);
 
 		if (!GetBool("AntiAliasedFonts", FALSE))
 			HookFonts();
