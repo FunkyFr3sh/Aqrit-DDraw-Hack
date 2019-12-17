@@ -414,16 +414,6 @@ void ToggleFullscreen(BOOL fakeFullscreen)
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-	/*
-	if (uMsg != WM_PAINT && uMsg != WM_ERASEBKGND)
-	{
-		char buf[256];
-
-		sprintf(buf, "xDBG hWnd:%08X, uMsg:%08X, wParam:%08X, lParam:%08X", hWnd, uMsg, wParam, lParam);
-
-		OutputDebugStringA(buf);
-	}
-	*/
 	switch (uMsg)
 	{
 		case WM_SIZING:
@@ -706,42 +696,37 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			}
 			break;
 		}
-		case WM_ACTIVATE:
+		case WM_ACTIVATEAPP:
 		{
-			// use WM_ACTIVATE to activate the game and WM_ACTIVATEAPP to deactivate (win 7 issues...)
-			if (wParam == WA_ACTIVE || wParam == WA_CLICKACTIVE)
+			if (Fullscreen)
 			{
-				if (Fullscreen)
+				if (wParam)
 				{
+					ShowWindow(hwnd_main, SW_RESTORE);
 					ChangeDisplaySettings(&GameDevMode, CDS_FULLSCREEN);
 					MouseLock();
 				}
 				else
 				{
-					if (WindowedFullscreen)
-						MouseLock();
-				}
-			}
-			break;
-		}
-		case WM_ACTIVATEAPP:
-		{
-			if (!wParam)
-			{
-				if (Fullscreen)
-				{
 					MouseUnlock();
 					ShowWindow(hwnd_main, SW_MINIMIZE);
 					ChangeDisplaySettings(NULL, BnetActive ? CDS_FULLSCREEN : 0);
+				}
+			}
+			else
+			{
+				if (wParam)
+				{
+					if (WindowedFullscreen)
+						MouseLock();
 				}
 				else
 				{
 					MouseUnlock();
 				}
-			}
 
-			if (!Fullscreen)
 				return 0;
+			}
 
 			break;
 		}
