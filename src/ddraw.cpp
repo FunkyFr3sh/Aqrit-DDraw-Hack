@@ -729,6 +729,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		}
 		case WM_ACTIVATEAPP:
 		{
+			if (!wParam)
+			{
+				MouseUnlock();
+			}
+
 			// keep drawing in windowed mode
 			if (!Fullscreen)
 				return 0;
@@ -739,7 +744,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		{
 			if (wParam == WA_INACTIVE)
 			{
-				MouseUnlock();
+				//MouseUnlock();
 			}
 			else if (wParam == WA_ACTIVE)
 			{
