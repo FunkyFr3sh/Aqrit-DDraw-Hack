@@ -963,6 +963,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 					"ShowWindowFrame=Yes\n"
 					"IgnoreAltEnter=No\n"
 					"AntiAliasedFonts=No\n"
+					"SingleProcAffinity=Yes\n"
 					"Width=640\n"
 					"Height=480\n"
 					"PosX=-32000\n"
@@ -984,6 +985,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 		if (!GetBool("AntiAliasedFonts", FALSE))
 			HookFonts();
 
+		if (GetBool("SingleProcAffinity", TRUE))
+			SetProcessAffinityMask(GetCurrentProcess(), 1);
 
 		Hook_PatchIAT(GetModuleHandle(NULL), "user32.dll", "CreateWindowExA", 0, (PROC)fake_CreateWindowExA);
 
