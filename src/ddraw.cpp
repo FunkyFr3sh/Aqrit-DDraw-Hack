@@ -988,6 +988,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 					"IgnoreAltEnter=No\n"
 					"AntiAliasedFonts=No\n"
 					"SingleProcAffinity=Yes\n"
+					"TitleBarScaleX=2\n"
 					"Width=640\n"
 					"Height=480\n"
 					"PosX=-32000\n"
