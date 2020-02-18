@@ -655,7 +655,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				int x = rc.left;
 				int y = rc.top;
 
-				if (width >= OriginalWidth * TitleBarScaleX && height + 20 >= OriginalHeight * TitleBarScaleX)
+				if (width >= OriginalWidth * TitleBarScaleX && height - 20 >= OriginalHeight * TitleBarScaleX)
 				{
 					static BOOL scaled = FALSE;
 
