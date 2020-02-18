@@ -23,6 +23,7 @@ BOOL ShowWindowFrame = TRUE;
 BOOL FullscreenFailed = FALSE;
 BOOL IgnoreAltEnter = FALSE;
 int TitleBarScaleX = 2;
+BOOL IsIntegerScaled = FALSE;
 BOOL MouseLocked;
 BOOL BnetActive;
 RECT WindowRect;
@@ -323,6 +324,12 @@ void ToggleFullscreen(BOOL fakeFullscreen)
 
 			int width = GetInt("Width", OriginalWidth);
 			int height = GetInt("Height", OriginalHeight);
+
+			IsIntegerScaled =
+				width > OriginalWidth &&
+				height > OriginalHeight &&
+				width % OriginalWidth == 0 &&
+				height % OriginalHeight == 0;
 
 			if (fakeFullscreen)
 			{
@@ -657,14 +664,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 				if (width >= OriginalWidth * TitleBarScaleX && height - 20 >= OriginalHeight * TitleBarScaleX)
 				{
-					static BOOL scaled = FALSE;
-
 					rc.top = 0;
 					rc.bottom = 0;
-					rc.right = scaled ? OriginalWidth : OriginalWidth * TitleBarScaleX;
-					rc.bottom = scaled ? OriginalHeight : OriginalHeight * TitleBarScaleX;
+					rc.right = IsIntegerScaled ? OriginalWidth : OriginalWidth * TitleBarScaleX;
+					rc.bottom = IsIntegerScaled ? OriginalHeight : OriginalHeight * TitleBarScaleX;
 
-					scaled = !scaled;
+					IsIntegerScaled = !IsIntegerScaled;
 
 					AdjustWindowRect(&rc, GetWindowLong(hwnd_main, GWL_STYLE), FALSE);
 
