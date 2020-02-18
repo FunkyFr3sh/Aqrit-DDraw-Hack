@@ -22,6 +22,7 @@ BOOL AlwaysOnTop = FALSE;
 BOOL ShowWindowFrame = TRUE;
 BOOL FullscreenFailed = FALSE;
 BOOL IgnoreAltEnter = FALSE;
+int TitleBarScaleX = 2;
 BOOL MouseLocked;
 BOOL BnetActive;
 RECT WindowRect;
@@ -647,18 +648,36 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		case WM_NCLBUTTONDBLCLK:
 		{
 			RECT rc;
-			if (!BnetActive && SystemParametersInfo(SPI_GETWORKAREA, 0, &rc, 0))
+			if (!BnetActive && TitleBarScaleX >= 2 && SystemParametersInfo(SPI_GETWORKAREA, 0, &rc, 0))
 			{
-				/*
-				SetWindowPos(
-					hwnd_main,
-					AlwaysOnTop ? HWND_TOPMOST : HWND_NOTOPMOST,
-					rc.left,
-					rc.top,
-					(rc.right - rc.left),
-					(rc.bottom - rc.top),
-					SWP_SHOWWINDOW);
-					*/
+				int width = (rc.right - rc.left);
+				int height = (rc.bottom - rc.top);
+				int x = rc.left;
+				int y = rc.top;
+
+				if (width >= OriginalWidth * TitleBarScaleX && height + 20 >= OriginalHeight * TitleBarScaleX)
+				{
+					static BOOL scaled = FALSE;
+
+					rc.top = 0;
+					rc.bottom = 0;
+					rc.right = scaled ? OriginalWidth : OriginalWidth * TitleBarScaleX;
+					rc.bottom = scaled ? OriginalHeight : OriginalHeight * TitleBarScaleX;
+
+					scaled = !scaled;
+
+					AdjustWindowRect(&rc, GetWindowLong(hwnd_main, GWL_STYLE), FALSE);
+
+					SetWindowPos(
+						hwnd_main,
+						AlwaysOnTop ? HWND_TOPMOST : HWND_NOTOPMOST,
+						(width / 2) - ((rc.right - rc.left) / 2) + x,
+						(height / 2) - ((rc.bottom - rc.top) / 2) + y,
+						(rc.right - rc.left),
+						(rc.bottom - rc.top),
+						SWP_SHOWWINDOW);
+
+				}
 			}
 
 			return 0;
@@ -981,6 +1000,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 		AlwaysOnTop = GetBool("AlwaysOnTop", FALSE);
 		ShowWindowFrame = GetBool("ShowWindowFrame", TRUE);
 		IgnoreAltEnter = GetBool("IgnoreAltEnter", FALSE);
+		TitleBarScaleX = GetInt("TitleBarScaleX", 2);
 
 		if (!GetBool("AntiAliasedFonts", FALSE))
 			HookFonts();
