@@ -8,6 +8,7 @@
 #include "hook.h"
 
 void HookFonts(void);
+void ToScreen(void);
 
 struct {
 	BITMAPINFOHEADER bmiHeader;
@@ -54,6 +55,8 @@ const DWORD* const IDDPal = ddp_vtbl;
 IDirectDraw* ddraw;
 IDirectDrawSurface* dds_primary = NULL;
 
+#define IDT_TIMER_BNET_REDRAW 541287655
+
 
 BOOL WINAPI fake_ClientToScreen(HWND hWnd, LPPOINT lpPoint)
 {
@@ -95,6 +98,7 @@ BOOL WINAPI fake_DestroyWindow(HWND hWnd)
 
 	if (hWnd != hwnd_main && BnetActive && !FindWindowEx(HWND_DESKTOP, NULL, "SDlgDialog", NULL))
 	{
+		KillTimer(hwnd_main, IDT_TIMER_BNET_REDRAW);
 		BnetActive = FALSE;
 
 		if (!Fullscreen && !WindowedFullscreen)
@@ -141,6 +145,7 @@ HWND WINAPI fake_CreateWindowExA(
 		if (!BnetActive)
 		{
 			BnetActive = TRUE;
+			SetTimer(hwnd_main, IDT_TIMER_BNET_REDRAW, 100, (TIMERPROC)NULL);
 
 			if (!Fullscreen && !WindowedFullscreen)
 			{
@@ -766,6 +771,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			{
 				if (Fullscreen || WindowedFullscreen)
 					MouseLock();
+			}
+			break;
+		}
+		case WM_TIMER:
+		{
+			switch (wParam)
+			{
+			case IDT_TIMER_BNET_REDRAW:
+			{
+				ToScreen();
+
+				return 0;
+			}
 			}
 			break;
 		}
