@@ -778,6 +778,7 @@ HRESULT GoFullscreen( void )
 	HMODULE ddraw_dll; 
 	DDSURFACEDESC ddsd;
 	typedef HRESULT (__stdcall* DIRECTDRAWCREATE)( GUID*, IDirectDraw**, IUnknown* ); 
+	typedef int(__stdcall* SETAPPCOMPATDATA)(int index, int data);
 
 	// load ddraw.dll from system32 dir
 	char szPath[ MAX_PATH ];
@@ -788,40 +789,44 @@ HRESULT GoFullscreen( void )
 
 		if( ddraw_dll != NULL)
 		{
+			SETAPPCOMPATDATA setAppCompatData = (SETAPPCOMPATDATA)GetProcAddress(ddraw_dll, "SetAppCompatData");
+			if (setAppCompatData) setAppCompatData(12, 0);
+
 			DIRECTDRAWCREATE pfnDirectDrawCreate = (DIRECTDRAWCREATE) GetProcAddress( ddraw_dll, "DirectDrawCreate" );
 			if( pfnDirectDrawCreate != NULL )
 			{
-				if( SUCCEEDED( pfnDirectDrawCreate( (GUID*)0, &ddraw, NULL ) ) )
-				{ 
-					if (Fullscreen)
+				if (SUCCEEDED(pfnDirectDrawCreate((GUID*)0, &ddraw, NULL)))
+				{
+					if (SUCCEEDED(ddraw->lpVtbl->SetCooperativeLevel(ddraw, hwnd_main, DDSCL_FULLSCREEN | DDSCL_EXCLUSIVE)))
 					{
-						if (SUCCEEDED(ddraw->lpVtbl->SetCooperativeLevel(ddraw, hwnd_main, DDSCL_FULLSCREEN | DDSCL_EXCLUSIVE)))
+						if (SUCCEEDED(ddraw->lpVtbl->SetDisplayMode(ddraw, OriginalWidth, OriginalHeight, 32)))
 						{
-							if (SUCCEEDED(ddraw->lpVtbl->SetDisplayMode(ddraw, OriginalWidth, OriginalHeight, 32)))
+							RtlSecureZeroMemory(&ddsd, sizeof(ddsd));
+							ddsd.dwSize = sizeof(ddsd);
+							ddsd.dwFlags = DDSD_CAPS;
+							ddsd.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE;
+							if (SUCCEEDED(ddraw->lpVtbl->CreateSurface(ddraw, &ddsd, &dds_primary, NULL)))
 							{
-								RtlSecureZeroMemory(&ddsd, sizeof(ddsd));
-								ddsd.dwSize = sizeof(ddsd);
-								ddsd.dwFlags = DDSD_CAPS;
-								ddsd.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE;
-								if (SUCCEEDED(ddraw->lpVtbl->CreateSurface(ddraw, &ddsd, &dds_primary, NULL)))
+								if (Fullscreen)
 								{
 									MouseLock();
 									return DD_OK;
 								}
-								ddraw->lpVtbl->RestoreDisplayMode(ddraw);
+								else
+								{
+									Fullscreen = TRUE;
+									ToggleFullscreen(FALSE);
+
+									return DD_OK;
+								}
 							}
-							ddraw->lpVtbl->SetCooperativeLevel(ddraw, hwnd_main, DDSCL_NORMAL);
+							ddraw->lpVtbl->RestoreDisplayMode(ddraw);
 						}
-						ddraw->lpVtbl->Release(ddraw);
-						ddraw = NULL;
+						ddraw->lpVtbl->SetCooperativeLevel(ddraw, hwnd_main, DDSCL_NORMAL);
 					}
-					else
-					{
-						Fullscreen = TRUE;
-						ToggleFullscreen(FALSE);
-						return DD_OK;
-					}
-						
+					ddraw->lpVtbl->Release(ddraw);
+					ddraw = NULL;
+
 				}
 			}
 			FreeLibrary( ddraw_dll );
@@ -856,6 +861,9 @@ LRESULT __stdcall ButtonWndProc( HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 void ToScreen( void )
 {
+	if (dds_primary == NULL) 
+		return;
+
 	HDC hdc;
 	HWND hwnd;
 	RECT rc;
@@ -863,6 +871,7 @@ void ToScreen( void )
 	int i;
 	RGBQUAD quad;
 	COLORREF clear_color;
+	BOOL fail;
 
 	CheckFullscreen();
 
@@ -879,10 +888,11 @@ void ToScreen( void )
 
 		// simpler/faster blit that also keeps screen shots (mostly) working...
 		// no screen flash when ss is taken?
-		hdc = GetDC( hwnd_main );
-		//BitBlt( hdc, 0, 0, WindowSize.right, WindowSize.bottom, hdc_offscreen, 0, 0, SRCCOPY );
 
-		//SetStretchBltMode(hdc, HALFTONE);
+		fail = FAILED(IDirectDrawSurface_GetDC(dds_primary, &hdc));
+
+		if (fail)
+			hdc = GetDC(hwnd_main);
 
 		StretchBlt(
 			hdc,
@@ -898,7 +908,11 @@ void ToScreen( void )
 			SRCCOPY
 		);
 
-		ReleaseDC( hwnd_main, hdc );
+		if (fail)
+			ReleaseDC(hwnd_main, hdc);
+		else
+			IDirectDrawSurface_ReleaseDC(dds_primary, hdc);
+
 		return;
 	}
 
@@ -906,30 +920,55 @@ void ToScreen( void )
 	GetDIBColorTable( hdc_offscreen, 0xFE, 1, &quad );
 	clear_color = RGB( quad.rgbRed, quad.rgbGreen, quad.rgbBlue );
 	
-	hdc = GetDC( hwnd_main );
+	fail = FAILED(IDirectDrawSurface_GetDC(dds_primary, &hdc));
+	
+	if (fail)
+		hdc = GetDC(hwnd_main);
+
 	GdiTransparentBlt( hdc, 0, 0, OriginalWidth, OriginalHeight, hdc_offscreen, 0, 0, OriginalWidth, OriginalHeight, clear_color );
-	ReleaseDC( hwnd_main, hdc );
+	
+	if (fail)
+		ReleaseDC(hwnd_main, hdc);
+	else
+		IDirectDrawSurface_ReleaseDC(dds_primary, hdc);
 
 	// blast it out to all top-level SDlgDialog windows... the realwtf
 	do
-	{	
-		fake_GetWindowRect( hwnd, &rc );
-		hdc = GetDCEx( hwnd, NULL, DCX_PARENTCLIP | DCX_CACHE );
+	{
+		fake_GetWindowRect(hwnd, &rc);
+		HDC hdcbnet = GetDCEx(hwnd, NULL, DCX_PARENTCLIP | DCX_CACHE);
 
-		GdiTransparentBlt( 
-			hdc, 
-			0, 
-			0, 
-			rc.right - rc.left, 
+		GdiTransparentBlt(
+			hdcbnet,
+			0,
+			0,
+			rc.right - rc.left,
 			rc.bottom - rc.top,
-			hdc_offscreen, 
-			rc.left, 
-			rc.top, 
-			rc.right - rc.left, 
+			hdc_offscreen,
+			rc.left,
+			rc.top,
+			rc.right - rc.left,
 			rc.bottom - rc.top,
 			clear_color);
 
-		ReleaseDC( hwnd, hdc );
+		if (GetForegroundWindow() == hwnd && SUCCEEDED(IDirectDrawSurface_GetDC(dds_primary, &hdc)))
+		{
+			BitBlt(
+				hdc,
+				rc.left,
+				rc.top,
+				rc.right - rc.left,
+				rc.bottom - rc.top,
+				hdcbnet,
+				0,
+				0,
+				SRCCOPY);
+
+			IDirectDrawSurface_ReleaseDC(dds_primary, hdc);
+		}
+
+		ReleaseDC(hwnd, hdcbnet);
+
 		hwnd = FindWindowEx( HWND_DESKTOP, hwnd, "SDlgDialog", NULL );
 	} while( hwnd != NULL );
 
