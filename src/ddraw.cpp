@@ -31,6 +31,7 @@ RECT WindowRect;
 HWND hwnd_main;
 void* pvBmpBits;
 HDC hdc_offscreen;
+HDC hdc_bnet_offscreen;
 const LONG OriginalWidth = 640;
 const LONG OriginalHeight = 480;
 LONG CurrentWidth = 640;
@@ -145,7 +146,7 @@ HWND WINAPI fake_CreateWindowExA(
 		if (!BnetActive)
 		{
 			BnetActive = TRUE;
-			SetTimer(hwnd_main, IDT_TIMER_BNET_REDRAW, 100, (TIMERPROC)NULL);
+			SetTimer(hwnd_main, IDT_TIMER_BNET_REDRAW, 50, (TIMERPROC)NULL);
 
 			if (!Fullscreen && !WindowedFullscreen)
 			{
@@ -886,10 +887,13 @@ void ToScreen( void )
 	HWND hwnd;
 	RECT rc;
 	DWORD* p;
-	int i;
+	int i = 0;
 	RGBQUAD quad;
 	COLORREF clear_color;
 	BOOL fail;
+	HWND hwnd_bnet[20];
+
+	memset(&hwnd_bnet[0], 0, sizeof(hwnd_bnet));
 
 	CheckFullscreen();
 
@@ -953,6 +957,8 @@ void ToScreen( void )
 	// blast it out to all top-level SDlgDialog windows... the realwtf
 	do
 	{
+		hwnd_bnet[i++] = hwnd;
+
 		fake_GetWindowRect(hwnd, &rc);
 		HDC hdcbnet = GetDCEx(hwnd, NULL, DCX_PARENTCLIP | DCX_CACHE);
 
@@ -969,10 +975,22 @@ void ToScreen( void )
 			rc.bottom - rc.top,
 			clear_color);
 
-		if (GetForegroundWindow() == hwnd && SUCCEEDED(IDirectDrawSurface_GetDC(dds_primary, &hdc)))
+		ReleaseDC(hwnd, hdcbnet);
+
+		hwnd = FindWindowEx( HWND_DESKTOP, hwnd, "SDlgDialog", NULL );
+	} while( hwnd != NULL );
+
+
+	//hack for windows 8/10 fullscreen exclusive mode
+	for (i = sizeof(hwnd_bnet) / sizeof(hwnd_bnet[0]); i--; )
+	{
+		if (hwnd_bnet[i])
 		{
+			fake_GetWindowRect(hwnd_bnet[i], &rc);
+			HDC hdcbnet = GetDC(hwnd_bnet[i]);
+
 			BitBlt(
-				hdc,
+				hdc_bnet_offscreen,
 				rc.left,
 				rc.top,
 				rc.right - rc.left,
@@ -982,13 +1000,16 @@ void ToScreen( void )
 				0,
 				SRCCOPY);
 
-			IDirectDrawSurface_ReleaseDC(dds_primary, hdc);
+			ReleaseDC(hwnd_bnet[i], hdcbnet);
 		}
+	}
 
-		ReleaseDC(hwnd, hdcbnet);
+	if (SUCCEEDED(IDirectDrawSurface_GetDC(dds_primary, &hdc)))
+	{
+		BitBlt(hdc, 0, 0, OriginalWidth, OriginalHeight, hdc_bnet_offscreen, 0, 0, SRCCOPY);
+		IDirectDrawSurface_ReleaseDC(dds_primary, hdc);
+	}
 
-		hwnd = FindWindowEx( HWND_DESKTOP, hwnd, "SDlgDialog", NULL );
-	} while( hwnd != NULL );
 
 	// erase ( breaks screen shots, use alt+prtnscr instead )
 	p = (DWORD*) pvBmpBits;
@@ -1022,6 +1043,13 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 		hBitmap = CreateDIBSection( NULL, (BITMAPINFO*) &bmi, DIB_RGB_COLORS, &pvBmpBits, NULL, 0 );
 		hdc_offscreen = CreateCompatibleDC( NULL );
 		hOldBitmap = (HBITMAP) SelectObject( hdc_offscreen, hBitmap );
+
+		HDC hdc = GetDC(HWND_DESKTOP);
+		hdc_bnet_offscreen = CreateCompatibleDC(hdc);
+		HBITMAP hBmp = CreateCompatibleBitmap(hdc, OriginalWidth, OriginalHeight);
+		SelectObject(hdc_bnet_offscreen, hBmp);
+		ReleaseDC(HWND_DESKTOP, hdc);
+		DeleteDC(hdc);
 
 		// super class 
 		hInst = GetModuleHandle( NULL );
