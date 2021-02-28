@@ -24,6 +24,7 @@ BOOL ShowWindowFrame = TRUE;
 BOOL FullscreenFailed = FALSE;
 BOOL IgnoreAltEnter = FALSE;
 BOOL AdjustMouseSensitivity = TRUE;
+BOOL SaveSettings = TRUE;
 int MaximizeScaleX = 2;
 BOOL IsIntegerScaled = FALSE;
 BOOL MouseLocked;
@@ -1040,6 +1041,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 					"SingleProcAffinity=Yes\n"
 					"MaximizeScaleX=2\n"
 					"AdjustMouseSensitivity=Yes\n"
+					"SaveSettings=Yes\n"
 					"Width=640\n"
 					"Height=480\n"
 					"PosX=-32000\n"
@@ -1059,6 +1061,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 		IgnoreAltEnter = GetBool("IgnoreAltEnter", FALSE);
 		MaximizeScaleX = GetInt("MaximizeScaleX", 2);
 		AdjustMouseSensitivity = GetBool("AdjustMouseSensitivity", TRUE);
+		SaveSettings = GetBool("SaveSettings", TRUE);
 
 		if (!GetBool("AntiAliasedFonts", FALSE))
 			HookFonts();
@@ -1081,30 +1084,32 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 		// todo: delete dibsection...
 		hOldBitmap = (HBITMAP) SelectObject( hdc_offscreen, hOldBitmap );
 
-		char buf[16];
-
-		if (!Fullscreen)
+		if (SaveSettings)
 		{
-			sprintf(buf, "%ld", CurrentWidth);
-			WritePrivateProfileString("ddraw", "Width", buf, SettingsIniPath);
+			char buf[16];
 
-			sprintf(buf, "%ld", CurrentHeight);
-			WritePrivateProfileString("ddraw", "Height", buf, SettingsIniPath);
+			if (!Fullscreen)
+			{
+				sprintf(buf, "%ld", CurrentWidth);
+				WritePrivateProfileString("ddraw", "Width", buf, SettingsIniPath);
+
+				sprintf(buf, "%ld", CurrentHeight);
+				WritePrivateProfileString("ddraw", "Height", buf, SettingsIniPath);
+			}
+
+			sprintf(buf, "%ld", CurrentX);
+			WritePrivateProfileString("ddraw", "PosX", buf, SettingsIniPath);
+
+			sprintf(buf, "%ld", CurrentY);
+			WritePrivateProfileString("ddraw", "PosY", buf, SettingsIniPath);
+
+			WritePrivateProfileString("ddraw", "Windowed", !Fullscreen ? "Yes" : "No", SettingsIniPath);
+			WritePrivateProfileString("ddraw", "ShowWindowFrame", ShowWindowFrame ? "Yes" : "No", SettingsIniPath);
+			WritePrivateProfileString("ddraw", "AlwaysOnTop", AlwaysOnTop ? "Yes" : "No", SettingsIniPath);
+
+			if (FullscreenFailed)
+				WritePrivateProfileString("ddraw", "FullscreenFailed", "Yes", SettingsIniPath);
 		}
-
-		sprintf(buf, "%ld", CurrentX);
-		WritePrivateProfileString("ddraw", "PosX", buf, SettingsIniPath);
-
-		sprintf(buf, "%ld", CurrentY);
-		WritePrivateProfileString("ddraw", "PosY", buf, SettingsIniPath);
-
-		WritePrivateProfileString("ddraw", "Windowed", !Fullscreen ? "Yes" : "No", SettingsIniPath);
-		WritePrivateProfileString("ddraw", "ShowWindowFrame", ShowWindowFrame ? "Yes" : "No", SettingsIniPath);
-		WritePrivateProfileString("ddraw", "AlwaysOnTop", AlwaysOnTop ? "Yes" : "No", SettingsIniPath);
-
-		if (FullscreenFailed)
-			WritePrivateProfileString("ddraw", "FullscreenFailed", "Yes", SettingsIniPath);
-
 
 		Hook_PatchIAT(GetModuleHandle(NULL), "user32.dll", "CreateWindowExA", 0, (PROC)CreateWindowExA);
 
