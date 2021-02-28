@@ -18,7 +18,7 @@ struct {
 LRESULT(CALLBACK *OrgWndProc)(HWND, UINT, WPARAM, LPARAM);
 BOOL Fullscreen = TRUE;
 BOOL WindowedFullscreen = FALSE;
-BOOL MaintainAspectRatio = TRUE;
+BOOL MaintainAspectRatio = FALSE;
 BOOL AlwaysOnTop = FALSE;
 BOOL ShowWindowFrame = TRUE;
 BOOL FullscreenFailed = FALSE;
@@ -1053,7 +1053,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 		}
 
 		Fullscreen = !GetBool("Windowed", FALSE);
-		MaintainAspectRatio = GetBool("MaintainAspectRatio", TRUE);
+		MaintainAspectRatio = GetBool("MaintainAspectRatio", FALSE);
 		AlwaysOnTop = GetBool("AlwaysOnTop", FALSE);
 		ShowWindowFrame = GetBool("ShowWindowFrame", TRUE);
 		IgnoreAltEnter = GetBool("IgnoreAltEnter", FALSE);
