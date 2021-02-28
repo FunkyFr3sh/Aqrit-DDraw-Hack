@@ -24,7 +24,7 @@ BOOL ShowWindowFrame = TRUE;
 BOOL FullscreenFailed = FALSE;
 BOOL IgnoreAltEnter = FALSE;
 BOOL AdjustMouseSensitivity = TRUE;
-int TitleBarScaleX = 2;
+int MaximizeScaleX = 2;
 BOOL IsIntegerScaled = FALSE;
 BOOL MouseLocked;
 BOOL BnetActive;
@@ -428,19 +428,19 @@ void ToggleFullscreen(BOOL fakeFullscreen)
 void ToggleMaximize()
 {
 	RECT rc;
-	if (!BnetActive && TitleBarScaleX >= 2 && SystemParametersInfo(SPI_GETWORKAREA, 0, &rc, 0))
+	if (!BnetActive && MaximizeScaleX >= 2 && SystemParametersInfo(SPI_GETWORKAREA, 0, &rc, 0))
 	{
 		int width = (rc.right - rc.left);
 		int height = (rc.bottom - rc.top);
 		int x = rc.left;
 		int y = rc.top;
 
-		if (width >= OriginalWidth * TitleBarScaleX && height - 20 >= OriginalHeight * TitleBarScaleX)
+		if (width >= OriginalWidth * MaximizeScaleX && height - 20 >= OriginalHeight * MaximizeScaleX)
 		{
 			rc.top = 0;
 			rc.bottom = 0;
-			rc.right = IsIntegerScaled ? OriginalWidth : OriginalWidth * TitleBarScaleX;
-			rc.bottom = IsIntegerScaled ? OriginalHeight : OriginalHeight * TitleBarScaleX;
+			rc.right = IsIntegerScaled ? OriginalWidth : OriginalWidth * MaximizeScaleX;
+			rc.bottom = IsIntegerScaled ? OriginalHeight : OriginalHeight * MaximizeScaleX;
 
 			IsIntegerScaled = !IsIntegerScaled;
 
@@ -1038,7 +1038,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 					"IgnoreAltEnter=No\n"
 					"AntiAliasedFonts=No\n"
 					"SingleProcAffinity=Yes\n"
-					"TitleBarScaleX=2\n"
+					"MaximizeScaleX=2\n"
 					"AdjustMouseSensitivity=Yes\n"
 					"Width=640\n"
 					"Height=480\n"
@@ -1057,7 +1057,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 		AlwaysOnTop = GetBool("AlwaysOnTop", FALSE);
 		ShowWindowFrame = GetBool("ShowWindowFrame", TRUE);
 		IgnoreAltEnter = GetBool("IgnoreAltEnter", FALSE);
-		TitleBarScaleX = GetInt("TitleBarScaleX", 2);
+		MaximizeScaleX = GetInt("MaximizeScaleX", 2);
 		AdjustMouseSensitivity = GetBool("AdjustMouseSensitivity", TRUE);
 
 		if (!GetBool("AntiAliasedFonts", FALSE))
