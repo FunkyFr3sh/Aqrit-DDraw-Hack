@@ -319,7 +319,7 @@ void ToggleFullscreen(BOOL fakeFullscreen)
 
 		if (ShowWindowFrame && !fakeFullscreen)
 		{
-			SetWindowLong(hwnd_main, GWL_STYLE, (GetWindowLong(hwnd_main, GWL_STYLE) | WS_OVERLAPPEDWINDOW) & ~(WS_MAXIMIZEBOX));
+			SetWindowLong(hwnd_main, GWL_STYLE, GetWindowLong(hwnd_main, GWL_STYLE) | WS_OVERLAPPEDWINDOW);
 		}
 		else
 		{
@@ -422,6 +422,40 @@ void ToggleFullscreen(BOOL fakeFullscreen)
 		ddraw->lpVtbl->SetDisplayMode(ddraw, OriginalWidth, OriginalHeight, 32);
 
 		MouseLock();
+	}
+}
+
+void ToggleMaximize()
+{
+	RECT rc;
+	if (!BnetActive && TitleBarScaleX >= 2 && SystemParametersInfo(SPI_GETWORKAREA, 0, &rc, 0))
+	{
+		int width = (rc.right - rc.left);
+		int height = (rc.bottom - rc.top);
+		int x = rc.left;
+		int y = rc.top;
+
+		if (width >= OriginalWidth * TitleBarScaleX && height - 20 >= OriginalHeight * TitleBarScaleX)
+		{
+			rc.top = 0;
+			rc.bottom = 0;
+			rc.right = IsIntegerScaled ? OriginalWidth : OriginalWidth * TitleBarScaleX;
+			rc.bottom = IsIntegerScaled ? OriginalHeight : OriginalHeight * TitleBarScaleX;
+
+			IsIntegerScaled = !IsIntegerScaled;
+
+			AdjustWindowRect(&rc, GetWindowLong(hwnd_main, GWL_STYLE), FALSE);
+
+			SetWindowPos(
+				hwnd_main,
+				AlwaysOnTop ? HWND_TOPMOST : HWND_NOTOPMOST,
+				(width / 2) - ((rc.right - rc.left) / 2) + x,
+				(height / 2) - ((rc.bottom - rc.top) / 2) + y,
+				(rc.right - rc.left),
+				(rc.bottom - rc.top),
+				SWP_SHOWWINDOW);
+
+		}
 	}
 }
 
@@ -666,56 +700,35 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		}
 		case WM_NCLBUTTONDBLCLK:
 		{
-			RECT rc;
-			if (!BnetActive && TitleBarScaleX >= 2 && SystemParametersInfo(SPI_GETWORKAREA, 0, &rc, 0))
+			ToggleMaximize();
+			return 0;
+		}
+		case WM_NCMOUSELEAVE:
+		{
+			LONG style = GetWindowLong(hwnd_main, GWL_STYLE);
+
+			if (!(style & WS_MAXIMIZEBOX))
 			{
-				int width = (rc.right - rc.left);
-				int height = (rc.bottom - rc.top);
-				int x = rc.left;
-				int y = rc.top;
-
-				if (width >= OriginalWidth * TitleBarScaleX && height - 20 >= OriginalHeight * TitleBarScaleX)
-				{
-					rc.top = 0;
-					rc.bottom = 0;
-					rc.right = IsIntegerScaled ? OriginalWidth : OriginalWidth * TitleBarScaleX;
-					rc.bottom = IsIntegerScaled ? OriginalHeight : OriginalHeight * TitleBarScaleX;
-
-					IsIntegerScaled = !IsIntegerScaled;
-
-					AdjustWindowRect(&rc, GetWindowLong(hwnd_main, GWL_STYLE), FALSE);
-
-					SetWindowPos(
-						hwnd_main,
-						AlwaysOnTop ? HWND_TOPMOST : HWND_NOTOPMOST,
-						(width / 2) - ((rc.right - rc.left) / 2) + x,
-						(height / 2) - ((rc.bottom - rc.top) / 2) + y,
-						(rc.right - rc.left),
-						(rc.bottom - rc.top),
-						SWP_SHOWWINDOW);
-
-				}
+				SetWindowLongA(hwnd_main, GWL_STYLE, style | WS_MAXIMIZEBOX);
 			}
 
-			return 0;
+			break;
 		}
 		case WM_SYSCOMMAND:
 		{
+			if ((wParam & ~0x0F) == SC_MOVE) /* hack: disable aero snap */
+			{
+				LONG style = GetWindowLong(hwnd_main, GWL_STYLE);
+
+				if ((style & WS_MAXIMIZEBOX))
+				{
+					SetWindowLongA(hwnd_main, GWL_STYLE, style & ~WS_MAXIMIZEBOX);
+				}
+			}
+
 			if (wParam == SC_MAXIMIZE)
 			{
-				RECT rc;
-				if (SystemParametersInfo(SPI_GETWORKAREA, 0, &rc, 0))
-				{
-					SetWindowPos(
-						hwnd_main,
-						AlwaysOnTop ? HWND_TOPMOST : HWND_NOTOPMOST,
-						rc.left,
-						rc.top,
-						(rc.right - rc.left),
-						(rc.bottom - rc.top),
-						SWP_SHOWWINDOW);
-				}
-
+				ToggleMaximize();
 				return 0;
 			}
 			break;
