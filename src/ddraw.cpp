@@ -1,6 +1,7 @@
 
 #define CINTERFACE 
 #include <windows.h>
+#include <windowsx.h>
 #include <ddraw.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -22,6 +23,7 @@ BOOL AlwaysOnTop = FALSE;
 BOOL ShowWindowFrame = TRUE;
 BOOL FullscreenFailed = FALSE;
 BOOL IgnoreAltEnter = FALSE;
+BOOL AdjustMouseSensitivity = TRUE;
 int TitleBarScaleX = 2;
 BOOL IsIntegerScaled = FALSE;
 BOOL MouseLocked;
@@ -32,6 +34,8 @@ void* pvBmpBits;
 HDC hdc_offscreen;
 const LONG OriginalWidth = 640;
 const LONG OriginalHeight = 480;
+float UnscaleW = 1.0f;
+float UnscaleH = 1.0f;
 LONG CurrentWidth = 640;
 LONG CurrentHeight = 480;
 LONG CurrentX = -32000;
@@ -207,7 +211,12 @@ BOOL UnadjustWindowRectEx(LPRECT prc, DWORD dwStyle, BOOL fMenu, DWORD dwExStyle
 
 void MouseLock()
 {
-	RECT rc = { 0, 0, OriginalWidth, OriginalHeight };
+	RECT rc = { 
+		0, 
+		0, 
+		AdjustMouseSensitivity ? CurrentWidth : OriginalWidth, 
+		AdjustMouseSensitivity ? CurrentHeight : OriginalHeight 
+	};
 
 	POINT pt = { rc.left, rc.top };
 	POINT pt2 = { rc.right, rc.bottom };
@@ -557,6 +566,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				CurrentWidth = LOWORD(lParam);
 				CurrentHeight = HIWORD(lParam);
 
+				UnscaleW = ((float)OriginalWidth / CurrentWidth);
+				UnscaleH = ((float)OriginalHeight / CurrentHeight);
+
 				if (MaintainAspectRatio)
 				{
 					LONG width = CurrentWidth;
@@ -712,6 +724,31 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		{
 			if (!MouseLocked && !BnetActive)
 				MouseLock();
+
+			/* fall through for lParam */
+		}
+		case WM_LBUTTONUP:
+		case WM_RBUTTONUP:
+		case WM_MBUTTONUP:
+		case WM_XBUTTONDBLCLK:
+		case WM_XBUTTONDOWN:
+		case WM_XBUTTONUP:
+		case WM_MOUSEWHEEL:
+		case WM_MOUSEHOVER:
+		case WM_LBUTTONDBLCLK:
+		case WM_MBUTTONDBLCLK:
+		case WM_RBUTTONDBLCLK:
+		case WM_LBUTTONDOWN:
+		case WM_MBUTTONDOWN:
+		case WM_MOUSEMOVE:
+		{
+			if (AdjustMouseSensitivity)
+			{
+				int x = GET_X_LPARAM(lParam) * UnscaleW;
+				int y = GET_Y_LPARAM(lParam) * UnscaleH;
+
+				lParam = MAKELPARAM(x, y);
+			}
 
 			break;
 		}
@@ -989,6 +1026,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 					"AntiAliasedFonts=No\n"
 					"SingleProcAffinity=Yes\n"
 					"TitleBarScaleX=2\n"
+					"AdjustMouseSensitivity=Yes\n"
 					"Width=640\n"
 					"Height=480\n"
 					"PosX=-32000\n"
@@ -1007,6 +1045,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 		ShowWindowFrame = GetBool("ShowWindowFrame", TRUE);
 		IgnoreAltEnter = GetBool("IgnoreAltEnter", FALSE);
 		TitleBarScaleX = GetInt("TitleBarScaleX", 2);
+		AdjustMouseSensitivity = GetBool("AdjustMouseSensitivity", TRUE);
 
 		if (!GetBool("AntiAliasedFonts", FALSE))
 			HookFonts();
