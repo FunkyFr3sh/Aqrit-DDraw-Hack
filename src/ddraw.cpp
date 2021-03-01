@@ -33,6 +33,8 @@ RECT WindowRect;
 HWND hwnd_main;
 void* pvBmpBits;
 HDC hdc_offscreen;
+RECT BnetPos = { -32000, -32000 };
+RECT BnetWindowRect;
 const LONG OriginalWidth = 640;
 const LONG OriginalHeight = 480;
 float UnscaleW = 1.0f;
@@ -104,14 +106,21 @@ BOOL WINAPI fake_DestroyWindow(HWND hWnd)
 
 		if (!Fullscreen && !WindowedFullscreen)
 		{
+			GetWindowRect(hwnd_main, &BnetPos);
+
+			int width = BnetWindowRect.right - BnetWindowRect.left;
+			int height = BnetWindowRect.bottom - BnetWindowRect.top;
+
+			UINT flags = width != OriginalWidth || height != OriginalHeight ? 0 : SWP_NOMOVE;
+
 			SetWindowPos(
 				hwnd_main,
 				AlwaysOnTop ? HWND_TOPMOST : HWND_NOTOPMOST,
-				0,
-				0,
+				WindowRect.left,
+				WindowRect.top,
 				WindowRect.right - WindowRect.left,
 				WindowRect.bottom - WindowRect.top,
-				SWP_NOMOVE);
+				flags);
 		}
 	}
 
@@ -119,30 +128,11 @@ BOOL WINAPI fake_DestroyWindow(HWND hWnd)
 }
 
 HWND WINAPI fake_CreateWindowExA(
-	DWORD dwExStyle, LPCSTR lpClassName, LPCSTR lpWindowName, DWORD dwStyle, int X, int Y, 
+	DWORD dwExStyle, LPCSTR lpClassName, LPCSTR lpWindowName, DWORD dwStyle, int X, int Y,
 	int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam)
 {
-	HWND hWnd = CreateWindowExA(
-		dwExStyle, 
-		lpClassName, 
-		lpWindowName, 
-		dwStyle, 
-		X, 
-		Y, 
-		nWidth, 
-		nHeight, 
-		hWndParent, 
-		hMenu, 
-		hInstance, 
-		lpParam);
-
 	if (_strcmpi(lpClassName, "SDlgDialog") == 0)
 	{
-		POINT pt = { 0, 0 };
-		ClientToScreen(hwnd_main, &pt);
-
-		SetWindowPos(hWnd, 0, pt.x + X, pt.y + Y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
-
 		if (!BnetActive)
 		{
 			BnetActive = TRUE;
@@ -154,19 +144,51 @@ HWND WINAPI fake_CreateWindowExA(
 				RECT rc = { 0, 0, OriginalWidth, OriginalHeight };
 				AdjustWindowRect(&rc, GetWindowLong(hwnd_main, GWL_STYLE), FALSE);
 
+				GetClientRect(hwnd_main, &BnetWindowRect);
+				MapWindowPoints(hwnd_main, HWND_DESKTOP, (LPPOINT)&BnetWindowRect, 2);
+
+				int width = BnetWindowRect.right - BnetWindowRect.left;
+				int height = BnetWindowRect.bottom - BnetWindowRect.top;
+
+				UINT flags = width != OriginalWidth || height != OriginalHeight ? 0 : SWP_NOMOVE;
+
+				if (BnetPos.left == -32000 || BnetPos.top == -32000)
+				{
+					BnetPos.left = (GetSystemMetrics(SM_CXSCREEN) / 2) - (OriginalWidth / 2);
+					BnetPos.top = (GetSystemMetrics(SM_CYSCREEN) / 2) - (OriginalHeight / 2);
+				}
+
 				SetWindowPos(
 					hwnd_main,
 					AlwaysOnTop ? HWND_TOPMOST : HWND_NOTOPMOST,
-					0,
-					0,
+					BnetPos.left,
+					BnetPos.top,
 					rc.right - rc.left,
 					rc.bottom - rc.top,
-					SWP_NOMOVE);
+					flags);
 			}
 		}
+
+		POINT pt = { 0, 0 };
+		ClientToScreen(hwnd_main, &pt);
+
+		X += pt.x;
+		Y += pt.y;
 	}
 
-	return hWnd;
+	return CreateWindowExA(
+		dwExStyle,
+		lpClassName,
+		lpWindowName,
+		dwStyle,
+		X,
+		Y,
+		nWidth,
+		nHeight,
+		hWndParent,
+		hMenu,
+		hInstance,
+		lpParam);
 }
 
 DWORD GetString(LPCSTR key, LPCSTR defaultValue, LPSTR outString, DWORD outSize)
