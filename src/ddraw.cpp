@@ -15,7 +15,7 @@ struct {
 	RGBQUAD bmiColors[256]; 
 } bmi;
 
-LRESULT(CALLBACK *OrgWndProc)(HWND, UINT, WPARAM, LPARAM);
+WNDPROC OrgWndProc;
 BOOL Fullscreen = TRUE;
 BOOL WindowedFullscreen = FALSE;
 BOOL MaintainAspectRatio = FALSE;
@@ -843,7 +843,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			break;
 		}
 	}
-	return OrgWndProc(hWnd, uMsg, wParam, lParam);
+	return CallWindowProcA(OrgWndProc, hWnd, uMsg, wParam, lParam);
 }
 
 HRESULT GoFullscreen( void )
