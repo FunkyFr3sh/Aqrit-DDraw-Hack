@@ -942,7 +942,6 @@ void ToScreen( void )
 	hwnd = BnetActive ? FindWindowEx(HWND_DESKTOP, NULL, "SDlgDialog", NULL) : NULL; // detect mixed gdi/ddraw screen
 	if( hwnd == NULL ) // in-game (ddraw only)
 	{  
-		/*
 		static DWORD lastTick;
 		DWORD curTick = timeGetTime();
 
@@ -950,7 +949,7 @@ void ToScreen( void )
 			return;
 
 		lastTick = curTick;
-		*/
+
 		// simpler/faster blit that also keeps screen shots (mostly) working...
 		// no screen flash when ss is taken?
 		hdc = GetDC( hwnd_main );
