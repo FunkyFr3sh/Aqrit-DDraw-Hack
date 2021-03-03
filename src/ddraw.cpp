@@ -1208,8 +1208,7 @@ HRESULT __stdcall dd_SetCooperativeLevel( void* This, HWND hWnd, DWORD dwFlags )
 { 
 	hwnd_main = hWnd;
 
-	OrgWndProc = (LRESULT(CALLBACK *)(HWND, UINT, WPARAM, LPARAM))GetWindowLong(hWnd, GWL_WNDPROC);
-	SetWindowLong(hWnd, GWL_WNDPROC, (LONG)WndProc);
+	OrgWndProc = (WNDPROC)SetWindowLong(hWnd, GWL_WNDPROC, (LONG)WndProc);
 
 	// the window size is the original desktop resolution...
 	// which is obnoxious when not running in fullscreen.
