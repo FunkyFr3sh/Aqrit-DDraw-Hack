@@ -246,7 +246,7 @@ void MouseLock()
 	ClientToScreen(hwnd_main, &pt);
 	ClientToScreen(hwnd_main, &pt2);
 
-	SetRect(&rc, pt.x, pt.y, pt2.x, pt2.y);
+	SetRect(&rc, pt.x + RenderX, pt.y + RenderY, pt2.x - RenderX, pt2.y - RenderY);
 	ClipCursor(&rc);
 
 	MouseLocked = TRUE;
@@ -640,6 +640,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 					RenderY = CurrentHeight / 2 - height / 2;
 					RenderX = CurrentWidth / 2 - width / 2;
 
+					UnscaleW = ((float)OriginalWidth / width);
+					UnscaleH = ((float)OriginalHeight / height);
+
 					RECT rc = { 0, 0, CurrentWidth, CurrentHeight };
 
 					HDC hdc = GetDC(hwnd_main);
@@ -780,8 +783,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		{
 			if (AdjustMouseSensitivity)
 			{
-				int x = GET_X_LPARAM(lParam) * UnscaleW;
-				int y = GET_Y_LPARAM(lParam) * UnscaleH;
+				int x = (GET_X_LPARAM(lParam) * UnscaleW) - RenderX;
+				int y = (GET_Y_LPARAM(lParam) * UnscaleH) - RenderY;
 
 				lParam = MAKELPARAM(x, y);
 			}
