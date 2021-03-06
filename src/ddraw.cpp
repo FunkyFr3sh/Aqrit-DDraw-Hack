@@ -114,6 +114,12 @@ BOOL WINAPI fake_DestroyWindow(HWND hWnd)
 
 			UINT flags = width != OriginalWidth || height != OriginalHeight ? 0 : SWP_NOMOVE;
 
+			if (WindowedFullscreen)
+				SetWindowLong(
+					hwnd_main,
+					GWL_STYLE, 
+					GetWindowLong(hwnd_main, GWL_STYLE) & ~(WS_CAPTION | WS_THICKFRAME | WS_MINIMIZE | WS_MAXIMIZE | WS_SYSMENU));
+
 			SetWindowPos(
 				hwnd_main,
 				AlwaysOnTop ? HWND_TOPMOST : HWND_NOTOPMOST,
@@ -144,6 +150,9 @@ HWND WINAPI fake_CreateWindowExA(
 			if (!Fullscreen)
 			{
 				GetWindowRect(hwnd_main, &WindowRect);
+
+				if (WindowedFullscreen)
+					SetWindowLong(hwnd_main, GWL_STYLE, GetWindowLong(hwnd_main, GWL_STYLE) | WS_OVERLAPPEDWINDOW);
 
 				RECT rc = { 0, 0, OriginalWidth, OriginalHeight };
 				AdjustWindowRect(&rc, GetWindowLong(hwnd_main, GWL_STYLE), FALSE);
