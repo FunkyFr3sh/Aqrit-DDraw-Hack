@@ -783,8 +783,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		{
 			if (AdjustMouseSensitivity)
 			{
-				int x = (GET_X_LPARAM(lParam) * UnscaleW) - RenderX;
-				int y = (GET_Y_LPARAM(lParam) * UnscaleH) - RenderY;
+				int x = ((GET_X_LPARAM(lParam) - RenderX) * UnscaleW);
+				int y = ((GET_Y_LPARAM(lParam) - RenderY) * UnscaleH);
 
 				lParam = MAKELPARAM(x, y);
 			}
