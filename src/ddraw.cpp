@@ -9,6 +9,7 @@
 #include "hook.h"
 
 void HookFonts(void);
+void MouseLock();
 
 struct {
 	BITMAPINFOHEADER bmiHeader;
@@ -104,7 +105,7 @@ BOOL WINAPI fake_DestroyWindow(HWND hWnd)
 	{
 		BnetActive = FALSE;
 
-		if (!Fullscreen && !WindowedFullscreen)
+		if (!Fullscreen)
 		{
 			GetWindowRect(hwnd_main, &BnetPos);
 
@@ -121,6 +122,9 @@ BOOL WINAPI fake_DestroyWindow(HWND hWnd)
 				WindowRect.right - WindowRect.left,
 				WindowRect.bottom - WindowRect.top,
 				flags);
+
+			if (WindowedFullscreen)
+				MouseLock();
 		}
 	}
 
@@ -137,7 +141,7 @@ HWND WINAPI fake_CreateWindowExA(
 		{
 			BnetActive = TRUE;
 
-			if (!Fullscreen && !WindowedFullscreen)
+			if (!Fullscreen)
 			{
 				GetWindowRect(hwnd_main, &WindowRect);
 
