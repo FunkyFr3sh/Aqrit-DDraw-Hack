@@ -235,10 +235,10 @@ BOOL UnadjustWindowRectEx(LPRECT prc, DWORD dwStyle, BOOL fMenu, DWORD dwExStyle
 void MouseLock()
 {
 	RECT rc = { 
-		0, 
-		0, 
-		AdjustMouseSensitivity ? CurrentWidth : OriginalWidth, 
-		AdjustMouseSensitivity ? CurrentHeight : OriginalHeight 
+		AdjustMouseSensitivity ? RenderX : 0,
+		AdjustMouseSensitivity ? RenderY : 0,
+		AdjustMouseSensitivity ? CurrentWidth - RenderX : OriginalWidth, 
+		AdjustMouseSensitivity ? CurrentHeight - RenderY : OriginalHeight 
 	};
 
 	POINT pt = { rc.left, rc.top };
@@ -246,7 +246,7 @@ void MouseLock()
 	ClientToScreen(hwnd_main, &pt);
 	ClientToScreen(hwnd_main, &pt2);
 
-	SetRect(&rc, pt.x + RenderX, pt.y + RenderY, pt2.x - RenderX, pt2.y - RenderY);
+	SetRect(&rc, pt.x, pt.y, pt2.x, pt2.y);
 	ClipCursor(&rc);
 
 	MouseLocked = TRUE;
