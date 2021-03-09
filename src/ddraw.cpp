@@ -833,6 +833,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 					return 0;
 				}
 			}
+
+			if (wParam == VK_BACK)
+			{
+				if (!Fullscreen && !WindowedFullscreen && !ShowWindowFrame)
+				{
+					ShowWindow(hwnd_main, SW_MINIMIZE);
+					return 0;
+				}
+			}
 			break;
 		}
 		case WM_ACTIVATEAPP:
