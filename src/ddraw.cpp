@@ -882,6 +882,25 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 					return 0;
 				}
 			}
+
+			if (wParam == VK_END)
+			{
+				if (!Fullscreen)
+				{
+					AlwaysOnTop = !AlwaysOnTop;
+
+					SetWindowPos(
+						hwnd_main, 
+						AlwaysOnTop ? HWND_TOPMOST : HWND_NOTOPMOST, 
+						0, 
+						0, 
+						0, 
+						0, 
+						SWP_NOSIZE | SWP_NOMOVE);
+
+					return 0;
+				}
+			}
 			break;
 		}
 		case WM_ACTIVATEAPP:
