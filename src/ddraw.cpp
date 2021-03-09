@@ -27,7 +27,7 @@ BOOL IgnoreAltEnter = FALSE;
 BOOL AdjustMouseSensitivity = TRUE;
 BOOL SaveSettings = TRUE;
 int MaximizeScaleX = 2;
-BOOL IsIntegerScaled = FALSE;
+BOOL IsResized = FALSE;
 BOOL MouseLocked;
 BOOL BnetActive;
 RECT WindowRect;
@@ -370,11 +370,7 @@ void ToggleFullscreen(BOOL fakeFullscreen)
 			int width = GetInt("Width", OriginalWidth);
 			int height = GetInt("Height", OriginalHeight);
 
-			IsIntegerScaled =
-				width > OriginalWidth &&
-				height > OriginalHeight &&
-				width % OriginalWidth == 0 &&
-				height % OriginalHeight == 0;
+			IsResized = width > OriginalWidth || height > OriginalHeight;
 
 			if (fakeFullscreen)
 			{
@@ -471,27 +467,34 @@ void ToggleMaximize()
 		int x = rc.left;
 		int y = rc.top;
 
-		if (width >= OriginalWidth * MaximizeScaleX && height - 20 >= OriginalHeight * MaximizeScaleX)
-		{
-			rc.top = 0;
-			rc.bottom = 0;
-			rc.right = IsIntegerScaled ? OriginalWidth : OriginalWidth * MaximizeScaleX;
-			rc.bottom = IsIntegerScaled ? OriginalHeight : OriginalHeight * MaximizeScaleX;
+		rc.top = 0;
+		rc.left = 0;
 
-			IsIntegerScaled = !IsIntegerScaled;
+		if (0 && width >= OriginalWidth * MaximizeScaleX && height - 20 >= OriginalHeight * MaximizeScaleX)
+		{
+			rc.right = IsResized ? OriginalWidth : OriginalWidth * MaximizeScaleX;
+			rc.bottom = IsResized ? OriginalHeight : OriginalHeight * MaximizeScaleX;
 
 			AdjustWindowRect(&rc, GetWindowLong(hwnd_main, GWL_STYLE), FALSE);
-
-			SetWindowPos(
-				hwnd_main,
-				AlwaysOnTop ? HWND_TOPMOST : HWND_NOTOPMOST,
-				(width / 2) - ((rc.right - rc.left) / 2) + x,
-				(height / 2) - ((rc.bottom - rc.top) / 2) + y,
-				(rc.right - rc.left),
-				(rc.bottom - rc.top),
-				SWP_SHOWWINDOW);
-
 		}
+		else if (IsResized)
+		{
+			rc.right = OriginalWidth;
+			rc.bottom = OriginalHeight;
+
+			AdjustWindowRect(&rc, GetWindowLong(hwnd_main, GWL_STYLE), FALSE);
+		}
+
+		IsResized = !IsResized;
+
+		SetWindowPos(
+			hwnd_main,
+			AlwaysOnTop ? HWND_TOPMOST : HWND_NOTOPMOST,
+			(width / 2) - ((rc.right - rc.left) / 2) + x,
+			(height / 2) - ((rc.bottom - rc.top) / 2) + y,
+			(rc.right - rc.left),
+			(rc.bottom - rc.top),
+			SWP_SHOWWINDOW);
 	}
 }
 
