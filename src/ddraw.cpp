@@ -26,7 +26,7 @@ BOOL FullscreenFailed = FALSE;
 BOOL IgnoreAltEnter = FALSE;
 BOOL AdjustMouseSensitivity = TRUE;
 BOOL SaveSettings = TRUE;
-int MaximizeScaleX = 2;
+int MaximizeScale = 1;
 BOOL IsResized = FALSE;
 BOOL MouseLocked;
 BOOL BnetActive;
@@ -460,34 +460,69 @@ void ToggleFullscreen(BOOL fakeFullscreen)
 void ToggleMaximize()
 {
 	RECT rc;
-	if (!BnetActive && MaximizeScaleX >= 2 && SystemParametersInfo(SPI_GETWORKAREA, 0, &rc, 0))
+	if (!BnetActive && SystemParametersInfo(SPI_GETWORKAREA, 0, &rc, 0))
 	{
 		int width = AlwaysOnTop ? GetSystemMetrics(SM_CXSCREEN) : (rc.right - rc.left);
 		int height = AlwaysOnTop ? GetSystemMetrics(SM_CYSCREEN) : (rc.bottom - rc.top);
 		int x = AlwaysOnTop ? 0 : rc.left;
 		int y = AlwaysOnTop ? 0 : rc.top;
 
-		rc.top = 0;
-		rc.left = 0;
+		rc.right = AlwaysOnTop ? width : rc.right;
+		rc.bottom = AlwaysOnTop ? height : rc.bottom;
+		rc.left = AlwaysOnTop ? x : rc.left;
+		rc.top = AlwaysOnTop ? y : rc.top;
 
-		if (width >= OriginalWidth * MaximizeScaleX && height - 20 >= OriginalHeight * MaximizeScaleX)
+		int scale = MaximizeScale;
+
+		if (scale == 1)
 		{
-			rc.right = IsResized ? OriginalWidth : OriginalWidth * MaximizeScaleX;
-			rc.bottom = IsResized ? OriginalHeight : OriginalHeight * MaximizeScaleX;
+			for (int i = 20; i-- > 1;)
+			{
+				if (OriginalWidth * i <= width && OriginalHeight * i <= height)
+				{
+					scale = i;
+					break;
+				}
+			}
+		}
+
+		if (scale >= 2 && width >= OriginalWidth * scale && height - 20 >= OriginalHeight * scale)
+		{
+			rc.top = 0;
+			rc.left = 0;
+			rc.right = IsResized ? OriginalWidth : OriginalWidth * scale;
+			rc.bottom = IsResized ? OriginalHeight : OriginalHeight * scale;
 
 			AdjustWindowRect(&rc, GetWindowLong(hwnd_main, GWL_STYLE), FALSE);
 		}
 		else if (IsResized)
 		{
+			rc.top = 0;
+			rc.left = 0;
 			rc.right = OriginalWidth;
 			rc.bottom = OriginalHeight;
 
 			AdjustWindowRect(&rc, GetWindowLong(hwnd_main, GWL_STYLE), FALSE);
 		}
-		else if (AlwaysOnTop)
+		else if (MaintainAspectRatio)
 		{
-			rc.right = width;
-			rc.bottom = height;
+			UnadjustWindowRectEx(&rc, GetWindowLong(hwnd_main, GWL_STYLE), FALSE, GetWindowLong(hwnd_main, GWL_EXSTYLE));
+
+			int w = rc.right - rc.left;
+			int h = rc.bottom - rc.top;
+
+			rc.top = 0;
+			rc.left = 0;
+			rc.right = w;
+			rc.bottom = ((float)OriginalHeight / OriginalWidth) * w;
+
+			if (rc.bottom > h)
+			{
+				rc.right = ((float)rc.right / rc.bottom) * h;
+				rc.bottom = h;
+			}
+
+			AdjustWindowRect(&rc, GetWindowLong(hwnd_main, GWL_STYLE), FALSE);
 		}
 
 		IsResized = !IsResized;
@@ -1088,13 +1123,14 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 				fputs(
 					"[ddraw]\n"
 					"Windowed=No\n"
-					"MaintainAspectRatio=Yes\n"
+					"MaintainAspectRatio=No\n"
 					"AlwaysOnTop=No\n"
 					"ShowWindowFrame=Yes\n"
 					"IgnoreAltEnter=No\n"
 					"AntiAliasedFonts=No\n"
 					"SingleProcAffinity=Yes\n"
-					"MaximizeScaleX=2\n"
+					"; 0 = Non-integer scale, 1 = Max. integer scale (if possible) or else non-integer scale, Higher value = custom integer scale\n"
+					"MaximizeScale=1\n"
 					"AdjustMouseSensitivity=Yes\n"
 					"SaveSettings=Yes\n"
 					"Width=640\n"
@@ -1114,7 +1150,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 		AlwaysOnTop = GetBool("AlwaysOnTop", FALSE);
 		ShowWindowFrame = GetBool("ShowWindowFrame", TRUE);
 		IgnoreAltEnter = GetBool("IgnoreAltEnter", FALSE);
-		MaximizeScaleX = GetInt("MaximizeScaleX", 2);
+		MaximizeScale = GetInt("MaximizeScale", 1);
 		AdjustMouseSensitivity = GetBool("AdjustMouseSensitivity", TRUE);
 		SaveSettings = GetBool("SaveSettings", TRUE);
 
