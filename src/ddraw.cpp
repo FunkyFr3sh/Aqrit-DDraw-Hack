@@ -836,7 +836,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 			if (wParam == VK_BACK)
 			{
-				if (!Fullscreen && !WindowedFullscreen && !ShowWindowFrame)
+				if (!Fullscreen && !ShowWindowFrame)
 				{
 					ShowWindow(hwnd_main, SW_MINIMIZE);
 					return 0;
