@@ -462,10 +462,10 @@ void ToggleMaximize()
 	RECT rc;
 	if (!BnetActive && MaximizeScaleX >= 2 && SystemParametersInfo(SPI_GETWORKAREA, 0, &rc, 0))
 	{
-		int width = (rc.right - rc.left);
-		int height = (rc.bottom - rc.top);
-		int x = rc.left;
-		int y = rc.top;
+		int width = AlwaysOnTop ? GetSystemMetrics(SM_CXSCREEN) : (rc.right - rc.left);
+		int height = AlwaysOnTop ? GetSystemMetrics(SM_CYSCREEN) : (rc.bottom - rc.top);
+		int x = AlwaysOnTop ? 0 : rc.left;
+		int y = AlwaysOnTop ? 0 : rc.top;
 
 		rc.top = 0;
 		rc.left = 0;
@@ -483,6 +483,11 @@ void ToggleMaximize()
 			rc.bottom = OriginalHeight;
 
 			AdjustWindowRect(&rc, GetWindowLong(hwnd_main, GWL_STYLE), FALSE);
+		}
+		else if (AlwaysOnTop)
+		{
+			rc.right = width;
+			rc.bottom = height;
 		}
 
 		IsResized = !IsResized;
