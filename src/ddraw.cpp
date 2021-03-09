@@ -470,7 +470,7 @@ void ToggleMaximize()
 		rc.top = 0;
 		rc.left = 0;
 
-		if (0 && width >= OriginalWidth * MaximizeScaleX && height - 20 >= OriginalHeight * MaximizeScaleX)
+		if (width >= OriginalWidth * MaximizeScaleX && height - 20 >= OriginalHeight * MaximizeScaleX)
 		{
 			rc.right = IsResized ? OriginalWidth : OriginalWidth * MaximizeScaleX;
 			rc.bottom = IsResized ? OriginalHeight : OriginalHeight * MaximizeScaleX;
