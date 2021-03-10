@@ -478,7 +478,7 @@ void ToggleMaximize()
 		{
 			for (int i = 20; i-- > 1;)
 			{
-				if (OriginalWidth * i <= width && OriginalHeight * i <= height)
+				if (width >= OriginalWidth * i && height - 20 >= OriginalHeight * i)
 				{
 					scale = i;
 					break;
