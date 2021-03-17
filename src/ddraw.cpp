@@ -10,11 +10,14 @@
 
 void HookFonts(void);
 void MouseLock();
+void ToScreen(BOOL obsHack);
 
 struct {
 	BITMAPINFOHEADER bmiHeader;
 	RGBQUAD bmiColors[256]; 
 } bmi;
+
+#define IDT_TIMER_OBS_REDRAW 541282468
 
 WNDPROC OrgWndProc;
 BOOL Fullscreen = TRUE;
@@ -27,6 +30,7 @@ BOOL IgnoreAltEnter = FALSE;
 BOOL AdjustMouseSensitivity = TRUE;
 BOOL SaveSettings = TRUE;
 int MaximizeScale = 1;
+int OverlayFPS = 5;
 BOOL IsResized = FALSE;
 BOOL MouseLocked;
 BOOL BnetActive;
@@ -103,6 +107,9 @@ BOOL WINAPI fake_DestroyWindow(HWND hWnd)
 
 	if (hWnd != hwnd_main && BnetActive && !FindWindowEx(HWND_DESKTOP, NULL, "SDlgDialog", NULL))
 	{
+		if (OverlayFPS > 0 && OverlayFPS <= 1000)
+			KillTimer(hwnd_main, IDT_TIMER_OBS_REDRAW);
+
 		BnetActive = FALSE;
 
 		if (!Fullscreen)
@@ -146,6 +153,9 @@ HWND WINAPI fake_CreateWindowExA(
 		if (!BnetActive)
 		{
 			BnetActive = TRUE;
+
+			if (OverlayFPS > 0 && OverlayFPS <= 1000)
+				SetTimer(hwnd_main, IDT_TIMER_OBS_REDRAW, 1000 / OverlayFPS, (TIMERPROC)NULL);
 
 			if (!Fullscreen)
 			{
@@ -542,6 +552,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	switch (uMsg)
 	{
+		case WM_TIMER:
+		{
+			switch (wParam)
+			{
+			case IDT_TIMER_OBS_REDRAW:
+			{
+				ToScreen(TRUE);
+				return 0;
+			}
+			}
+			break;
+		}
 		case WM_NCHITTEST:
 		{
 			LRESULT result = DefWindowProc(hWnd, uMsg, wParam, lParam);
@@ -1014,7 +1036,7 @@ LRESULT __stdcall ButtonWndProc( HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
 	return ButtonWndProc_original( hwnd, msg, wParam, lParam );
 }
 
-void ToScreen( void )
+void ToScreen(BOOL obsHack)
 {
 	HDC hdc;
 	HWND hwnd;
@@ -1059,6 +1081,28 @@ void ToScreen( void )
 		);
 
 		ReleaseDC( hwnd_main, hdc );
+		return;
+	}
+	else if (obsHack)
+	{
+		fake_GetWindowRect(hwnd, &rc);
+
+		hdc = GetDC(hwnd);
+		HDC hdcMain = GetDC(hwnd_main);
+
+		BitBlt(
+			hdcMain,
+			rc.left,
+			rc.top,
+			rc.right - rc.left,
+			rc.bottom - rc.top,
+			hdc,
+			0,
+			0,
+			SRCCOPY);
+
+		ReleaseDC(hwnd_main, hdcMain);
+		ReleaseDC(hwnd, hdc);
 		return;
 	}
 
@@ -1150,6 +1194,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 					"SingleProcAffinity=Yes\n"
 					"; 0 = Non-integer scale, 1 = Max. integer scale (if possible) or else non-integer scale, Higher value = custom integer scale\n"
 					"MaximizeScale=1\n"
+					"; Hack for OBS to allow 'Window Capture' with a single source - possible values = 0-1000\n"
+					"OverlayFPS=5\n"
 					"AdjustMouseSensitivity=Yes\n"
 					"SaveSettings=Yes\n"
 					"Width=640\n"
@@ -1170,6 +1216,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 		ShowWindowFrame = GetBool("ShowWindowFrame", TRUE);
 		IgnoreAltEnter = GetBool("IgnoreAltEnter", FALSE);
 		MaximizeScale = GetInt("MaximizeScale", 1);
+		OverlayFPS = GetInt("OverlayFPS", 5);
 		AdjustMouseSensitivity = GetBool("AdjustMouseSensitivity", TRUE);
 		SaveSettings = GetBool("SaveSettings", TRUE);
 
@@ -1244,7 +1291,7 @@ HRESULT __stdcall ddp_SetEntries( void* This, DWORD dwFlags, DWORD dwStartingEnt
 
 	SetDIBColorTable( hdc_offscreen, 0, 256, colors );
 
-	ToScreen(); // animate palette
+	ToScreen(FALSE); // animate palette
 
 	// HACK // 
 	// not drawing main menu after movie? 
@@ -1269,7 +1316,7 @@ HRESULT __stdcall dds_Lock( void* This, LPRECT lpDestRect, LPDDSURFACEDESC lpDDS
 
 HRESULT __stdcall dds_Unlock( void* This, LPVOID lpSurfMemPtr )
 {
-	ToScreen();
+	ToScreen(FALSE);
 	return 0;
 }
 
