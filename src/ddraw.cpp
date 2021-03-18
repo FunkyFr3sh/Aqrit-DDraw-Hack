@@ -892,6 +892,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				if (!IgnoreAltEnter)
 				{ 
 					ToggleFullscreen(FALSE);
+					RedrawWindow(NULL, NULL, NULL, RDW_ERASE | RDW_INVALIDATE | RDW_ALLCHILDREN);
 					return 0;
 				}
 			}
