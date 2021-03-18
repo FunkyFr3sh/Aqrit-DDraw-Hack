@@ -360,7 +360,8 @@ void ToggleFullscreen(BOOL fakeFullscreen)
 		if (ddraw)
 		{
 			ddraw->lpVtbl->SetCooperativeLevel(ddraw, hwnd_main, DDSCL_NORMAL);
-			ddraw->lpVtbl->RestoreDisplayMode(ddraw);
+			ChangeDisplaySettingsA(NULL, 0);
+			//ddraw->lpVtbl->RestoreDisplayMode(ddraw);
 		}
 
 		if (ShowWindowFrame && !fakeFullscreen)
