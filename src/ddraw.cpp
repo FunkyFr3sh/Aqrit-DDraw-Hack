@@ -29,6 +29,7 @@ BOOL FullscreenFailed = FALSE;
 BOOL IgnoreAltEnter = FALSE;
 BOOL AdjustMouseSensitivity = TRUE;
 BOOL SaveSettings = TRUE;
+BOOL Transparent = FALSE;
 int MaximizeScale = 1;
 int OverlayFPS = 5;
 BOOL IsResized = FALSE;
@@ -199,7 +200,7 @@ HWND WINAPI fake_CreateWindowExA(
 		Y += pt.y;
 	}
 
-	return CreateWindowExA(
+	HWND hwnd = CreateWindowExA(
 		dwExStyle,
 		lpClassName,
 		lpWindowName,
@@ -212,6 +213,15 @@ HWND WINAPI fake_CreateWindowExA(
 		hMenu,
 		hInstance,
 		lpParam);
+
+	if (Transparent && _strcmpi(lpClassName, "SDlgDialog") == 0)
+	{
+		LONG style = GetWindowLong(hwnd, GWL_EXSTYLE);
+		SetWindowLongA(hwnd, GWL_EXSTYLE, style | WS_EX_LAYERED);
+		SetLayeredWindowAttributes(hwnd, 0, 1, LWA_ALPHA);
+	}
+
+	return hwnd;
 }
 
 DWORD GetString(LPCSTR key, LPCSTR defaultValue, LPSTR outString, DWORD outSize)
@@ -907,6 +917,32 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				}
 			}
 
+			if (wParam == VK_HOME)
+			{
+				Transparent = !Transparent;
+
+				HWND x = FindWindowEx(HWND_DESKTOP, NULL, "SDlgDialog", NULL);
+
+				while (x)
+				{
+					LONG style = GetWindowLong(x, GWL_EXSTYLE);
+
+					if (Transparent)
+					{
+						SetWindowLongA(x, GWL_EXSTYLE, style | WS_EX_LAYERED);
+						SetLayeredWindowAttributes(x, 0, 1, LWA_ALPHA);
+					}
+					else
+					{
+						SetWindowLongA(x, GWL_EXSTYLE, style & ~WS_EX_LAYERED);
+					}
+
+					x = FindWindowEx(HWND_DESKTOP, x, "SDlgDialog", NULL);
+				}
+
+				return 0;
+			}
+
 			if (wParam == VK_END)
 			{
 				if (!Fullscreen)
@@ -914,12 +950,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 					AlwaysOnTop = !AlwaysOnTop;
 
 					SetWindowPos(
-						hwnd_main, 
-						AlwaysOnTop ? HWND_TOPMOST : HWND_NOTOPMOST, 
-						0, 
-						0, 
-						0, 
-						0, 
+						hwnd_main,
+						AlwaysOnTop ? HWND_TOPMOST : HWND_NOTOPMOST,
+						0,
+						0,
+						0,
+						0,
 						SWP_NOSIZE | SWP_NOMOVE);
 
 					return 0;
@@ -1221,6 +1257,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 		OverlayFPS = GetInt("OverlayFPS", 5);
 		AdjustMouseSensitivity = GetBool("AdjustMouseSensitivity", TRUE);
 		SaveSettings = GetBool("SaveSettings", TRUE);
+		Transparent = GetBool("Transparent", FALSE);
 
 		if (!GetBool("AntiAliasedFonts", FALSE))
 			HookFonts();
