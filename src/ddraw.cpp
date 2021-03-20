@@ -944,7 +944,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		{
 			if (wParam == WA_INACTIVE)
 			{
-				//MouseUnlock();
+				if (!Fullscreen && !WindowedFullscreen)
+					MouseUnlock();
 			}
 			else if (wParam == WA_ACTIVE)
 			{
