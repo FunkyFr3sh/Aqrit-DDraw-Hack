@@ -876,14 +876,22 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			{
 				if (GetAsyncKeyState(VK_CONTROL) & 0x8000 && GetAsyncKeyState(VK_TAB) & 0x8000)
 				{
-					if (MouseLocked)
-						MouseUnlock();
-					else
-						MouseLock();
+					MouseUnlock();
+					
+					return 0;
+				}
+			}
+
+			if (wParam == VK_CONTROL || wParam == VK_MENU)
+			{
+				if ((GetAsyncKeyState(VK_RMENU) & 0x8000) && GetAsyncKeyState(VK_RCONTROL) & 0x8000)
+				{
+					MouseUnlock();
 
 					return 0;
 				}
 			}
+
 			break;
 		}
 		case WM_SYSKEYDOWN:
